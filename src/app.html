@@ -15,25 +15,15 @@
   <style>
 /*@@PHOSPHOR_CSS@@*/
     /* === tool-specific styles below === */
-    .view.game { flex: 1 1 auto; min-height: 0; gap: var(--sp-3); }
-    .screen-body:has(.view.game.is-active) { padding-bottom: var(--sp-4); overflow: hidden; }
 
-    .stats { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: var(--sp-2); flex: none; }
-    .stat {
-      display: flex; flex-direction: column; gap: 0; min-width: 0;
-      padding: 6px var(--sp-3);
-      background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius);
-    }
-    .stat .label { font-size: var(--fs-xs); }
-    .stat-v { font-size: var(--fs-lg); font-weight: 700; line-height: var(--lh-tight); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .stat canvas { width: 40px; height: 20px; margin-top: 2px; }
+    .hud canvas { width: 32px; height: 16px; }
 
     .board-wrap {
       position: relative; flex: 1 1 auto; min-height: 0;
       display: flex; align-items: center; justify-content: center;
       touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
     }
-    .board-box { position: relative; flex: none; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg); }
+    .board-box { position: relative; flex: none; margin: auto; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg); }
     .board-box canvas { display: block; }
     .overlay {
       position: absolute; inset: 0; z-index: 1;
@@ -45,13 +35,6 @@
     .overlay p { color: var(--text-dim); font-size: var(--fs-sm); max-width: 30ch; }
     .overlay p.new-best { color: var(--amber); font-weight: 700; }
     .overlay .btn { min-width: 170px; }
-    .status-line { flex: none; text-align: center; font-size: var(--fs-xs); color: var(--text-dim); min-height: 18px; }
-    .status-line.win { color: var(--accent); }
-    .status-line.lose { color: var(--red); }
-    .status-line.lose::before { content: "ERR> "; font-weight: 700; }
-
-    .keypad .key.word { font-size: var(--fs-sm); }
-    .keypad.one-row .key { min-height: 52px; }
 
     /* Home */
     .marquee { text-align: center; padding: var(--sp-5) var(--sp-4); }
@@ -115,12 +98,28 @@
     <header class="app-header">
       <button class="key key-sm" data-back hidden aria-label="Back">‹</button>
       <h1 class="app-title" data-view-title>Arcade</h1>
-      <span class="app-meta">v1.0</span>
+      <span class="app-meta" data-hide-on="/snake /2048 /mines /blocks">v1.1</span>
+      <div class="hdr-keys" data-show-on="/snake /blocks" hidden>
+        <button class="key key-sm" data-act="pause" aria-label="Pause">II</button>
+        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
+      </div>
+      <div class="hdr-keys" data-show-on="/2048" hidden>
+        <button class="key key-sm word" data-act="undo">Undo</button>
+        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
+      </div>
+      <div class="hdr-keys" data-show-on="/mines" hidden>
+        <button class="key key-sm" data-act="flag" aria-pressed="false" aria-label="Flag mode">▲</button>
+        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
+      </div>
       <button class="key key-sm" data-open-sheet="menu" aria-label="Menu">☰</button>
     </header>
     <div class="screen">
       <canvas class="rain" aria-hidden="true" hidden></canvas>
       <nav class="path" data-path aria-label="Location"></nav>
+      <div class="hud" data-show-on="/snake" hidden><i>Score</i> <b class="glow" id="snake-score">0</b> <i>Best</i> <b id="snake-best">0</b></div>
+      <div class="hud" data-show-on="/2048" hidden><i>Score</i> <b class="glow" id="g2048-score">0</b> <i>Best</i> <b id="g2048-best">0</b></div>
+      <div class="hud" data-show-on="/mines" hidden><i>▲</i> <b class="glow" id="mines-left">0</b> <b id="mines-time">0:00</b> <i>Best</i> <b id="mines-best">—</b></div>
+      <div class="hud" data-show-on="/blocks" hidden><i>Score</i> <b class="glow" id="blocks-score">0</b> <i>Lv</i> <b id="blocks-level">1</b> <canvas id="blocks-next" aria-label="Next piece"></canvas></div>
       <div class="screen-body">
 
       <!-- ============ HOME ============ -->
@@ -142,58 +141,36 @@
       </section>
 
       <!-- ============ SNAKE ============ -->
-      <section class="view game" data-route="/snake" data-title="Snake">
-        <div class="stats" style="--n:2">
-          <div class="stat"><span class="label">Score</span><span class="stat-v glow" id="snake-score">0</span></div>
-          <div class="stat"><span class="label">Best</span><span class="stat-v" id="snake-best">0</span></div>
-        </div>
+      <section class="view fill" data-route="/snake" data-title="Snake">
         <div class="board-wrap" id="snake-wrap">
               <div class="overlay" id="snake-ov"></div>
           <div class="board-box" id="snake-box">
             <canvas id="snake-cv" aria-label="Snake board"></canvas>
           </div>
         </div>
-        <p class="status-line">Swipe on the screen or use the keys below.</p>
       </section>
 
       <!-- ============ 2048 ============ -->
-      <section class="view game" data-route="/2048" data-title="2048">
-        <div class="stats" style="--n:2">
-          <div class="stat"><span class="label">Score</span><span class="stat-v glow" id="g2048-score">0</span></div>
-          <div class="stat"><span class="label">Best</span><span class="stat-v" id="g2048-best">0</span></div>
-        </div>
+      <section class="view fill" data-route="/2048" data-title="2048">
         <div class="board-wrap" id="g2048-wrap">
               <div class="overlay" id="g2048-ov" hidden></div>
           <div class="board-box" id="g2048-box">
             <div class="g2048" id="g2048-grid" role="grid" aria-label="2048 board"></div>
           </div>
         </div>
-        <p class="status-line">Swipe to slide the tiles. Equal numbers merge.</p>
       </section>
 
       <!-- ============ MINES ============ -->
-      <section class="view game" data-route="/mines" data-title="Mines">
-        <div class="stats" style="--n:3">
-          <div class="stat"><span class="label">Mines</span><span class="stat-v glow" id="mines-left">0</span></div>
-          <div class="stat"><span class="label">Time</span><span class="stat-v" id="mines-time">0:00</span></div>
-          <div class="stat"><span class="label">Best</span><span class="stat-v" id="mines-best">—</span></div>
-        </div>
+      <section class="view fill" data-route="/mines" data-title="Mines">
         <div class="board-wrap" id="mines-wrap">
           <div class="board-box">
             <div class="mines" id="mines-board" aria-label="Minefield"></div>
           </div>
         </div>
-        <p class="status-line" id="mines-status" aria-live="polite"></p>
       </section>
 
       <!-- ============ BLOCKS ============ -->
-      <section class="view game" data-route="/blocks" data-title="Blocks">
-        <div class="stats" style="--n:4">
-          <div class="stat"><span class="label">Score</span><span class="stat-v glow" id="blocks-score">0</span></div>
-          <div class="stat"><span class="label">Lines</span><span class="stat-v" id="blocks-lines">0</span></div>
-          <div class="stat"><span class="label">Level</span><span class="stat-v" id="blocks-level">1</span></div>
-          <div class="stat"><span class="label">Next</span><canvas id="blocks-next" aria-hidden="true"></canvas></div>
-        </div>
+      <section class="view fill" data-route="/blocks" data-title="Blocks">
         <div class="board-wrap" id="blocks-wrap">
               <div class="overlay" id="blocks-ov"></div>
           <div class="board-box" id="blocks-box">
@@ -231,7 +208,7 @@
         <div class="menu-group">
           <span class="label">About</span>
           <div class="menu">
-            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.0</span></a>
+            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.1</span></a>
           </div>
         </div>
       </section>
@@ -247,11 +224,11 @@
 
       <section class="view" data-route="/settings/minefield" data-title="Minefield">
         <div class="menu" role="radiogroup" aria-label="Minefield size">
-          <button class="menu-item" role="radio" data-setting="minefield" data-value="easy" data-back-on-pick><span class="mi-label">Easy<small>8 × 10, 10 mines</small></span></button>
-          <button class="menu-item" role="radio" data-setting="minefield" data-value="normal" data-back-on-pick><span class="mi-label">Normal<small>9 × 13, 20 mines</small></span></button>
-          <button class="menu-item" role="radio" data-setting="minefield" data-value="hard" data-back-on-pick><span class="mi-label">Hard<small>10 × 15, 32 mines</small></span></button>
+          <button class="menu-item" role="radio" data-setting="minefield" data-value="easy" data-back-on-pick><span class="mi-label">Easy<small>8 across, about 1 in 8 squares is a mine</small></span></button>
+          <button class="menu-item" role="radio" data-setting="minefield" data-value="normal" data-back-on-pick><span class="mi-label">Normal<small>9 across, about 1 in 6</small></span></button>
+          <button class="menu-item" role="radio" data-setting="minefield" data-value="hard" data-back-on-pick><span class="mi-label">Hard<small>10 across, about 1 in 5</small></span></button>
         </div>
-        <p class="menu-note">A game in progress keeps its size; the next game uses the new one. Each size keeps its own best time.</p>
+        <p class="menu-note">The field is as tall as your screen. A game in progress keeps its size; the next game uses the new one. Each level keeps its own best time.</p>
       </section>
 
       <section class="view" data-route="/settings/display" data-title="Display">
@@ -282,7 +259,7 @@
 
       <section class="view" data-route="/settings/about" data-title="About">
         <section class="panel" data-title="Phosphor Arcade">
-          <div class="kv"><span>Version</span><span>1.0</span></div>
+          <div class="kv"><span>Version</span><span>1.1</span></div>
           <div class="kv"><span>Games</span><span>4</span></div>
           <div class="kv"><span>Works offline</span><span class="t-accent">Yes</span></div>
           <div class="kv"><span>Storage</span><span>This phone</span></div>
@@ -290,8 +267,8 @@
         <section class="panel" data-title="Controls">
           <ul class="list plain small">
             <li>Snake: swipe or arrow keys to steer.</li>
-            <li>2048: swipe or arrow keys; Undo takes back one move.</li>
-            <li>Mines: tap to dig, hold or use Flag mode to flag. Tap a number to clear around it.</li>
+            <li>2048: swipe or arrow keys; Undo in the header takes back one move.</li>
+            <li>Mines: tap to dig, hold a square (or turn on ▲ in the header) to flag. Tap a number to clear around it.</li>
             <li>Blocks: drag to move, tap to rotate, flick down to drop.</li>
           </ul>
         </section>
@@ -300,21 +277,6 @@
       </div><!-- /.screen-body -->
     </div><!-- /.screen -->
 
-    <section class="keypad" data-for="/snake" aria-label="Snake keys" hidden>
-      <button class="key word" data-k="pause">Pause</button><button class="key" data-k="up" aria-label="Up">↑</button><button class="key word" data-k="new">New</button>
-      <button class="key" data-k="left" aria-label="Left">←</button><button class="key" data-k="down" aria-label="Down">↓</button><button class="key" data-k="right" aria-label="Right">→</button>
-    </section>
-    <section class="keypad" data-for="/2048" aria-label="2048 keys" hidden>
-      <button class="key word" data-k="undo">Undo</button><button class="key" data-k="up" aria-label="Up">↑</button><button class="key word" data-k="new">New</button>
-      <button class="key" data-k="left" aria-label="Left">←</button><button class="key" data-k="down" aria-label="Down">↓</button><button class="key" data-k="right" aria-label="Right">→</button>
-    </section>
-    <section class="keypad one-row" data-for="/mines" aria-label="Mines keys" hidden>
-      <button class="key word" data-k="dig" aria-pressed="true">Dig</button><button class="key word" data-k="flag" aria-pressed="false">Flag</button><button class="key word key-dark" data-k="new">New</button>
-    </section>
-    <section class="keypad" data-for="/blocks" aria-label="Blocks keys" hidden>
-      <button class="key word" data-k="pause">Pause</button><button class="key" data-k="rot" aria-label="Rotate">⟳</button><button class="key word" data-k="drop">Drop</button>
-      <button class="key" data-k="left" aria-label="Left">←</button><button class="key" data-k="down" aria-label="Down">↓</button><button class="key" data-k="right" aria-label="Right">→</button>
-    </section>
   </main>
 
   <dialog class="sheet dropdown" id="menu" aria-label="Menu">
@@ -329,7 +291,8 @@
     </div>
     <div class="sheet-title" id="actions-title" hidden>Actions</div>
     <div class="menu" id="actions" hidden>
-      <button class="menu-item" data-action="new"><span class="mi-glyph" aria-hidden="true">+</span><span class="mi-label">New game</span></button>
+      <button class="menu-item" data-action="new"><span class="mi-glyph" aria-hidden="true">⟳</span><span class="mi-label">New game</span></button>
+      <button class="menu-item" data-action="undo" data-show-on="/2048"><span class="mi-glyph" aria-hidden="true">←</span><span class="mi-label">Undo last move</span></button>
     </div>
   </dialog>
 

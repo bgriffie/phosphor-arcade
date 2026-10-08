@@ -67,32 +67,23 @@
     el.hidden = false;
   }
 
-  /* Keycaps: act on press (snappy), optional auto-repeat while held */
-  function bindKeys(route, handler, repeat = []) {
-    const pad = $(`.keypad[data-for="${route}"]`);
-    pad.querySelectorAll('[data-k]').forEach(b => {
-      const k = b.dataset.k; let to, iv;
-      const stop = () => { clearTimeout(to); clearInterval(iv); };
-      b.addEventListener('pointerdown', e => {
-        e.preventDefault(); handler(k);
-        if (repeat.includes(k)) to = setTimeout(() => { iv = setInterval(() => handler(k), 55); }, 200);
-      });
-      ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => b.addEventListener(t, stop));
-      b.addEventListener('click', e => { if (e.detail === 0) handler(k); });   // keyboard activation
-    });
-  }
+  let active = null;   // the game on screen, if any
+  const syncKeys = () => {
+    const b = $('.hdr-keys [data-act="pause"]');
+    if (b) { const p = !!(active && active.paused); b.textContent = p ? '▸' : 'II'; b.setAttribute('aria-label', p ? 'Resume' : 'Pause'); }
+  };
 
   /* ======================================================================
      SNAKE
      ====================================================================== */
   const snake = (() => {
     const wrap = $('#snake-wrap'), box = $('#snake-box'), cv = $('#snake-cv'), ov = $('#snake-ov');
-    const COLS = 15, SPEED = { slow: 170, normal: 120, fast: 82 };
+    const view = wrap.closest('.view'), COLS = 15, SPEED = { slow: 170, normal: 120, fast: 82 };
     let ctx, rows = 20, cell = 20, body, dir, queue, food, score = 0, state = 'ready', timer = null, dead = false, newBest = false;
 
     function reset() {
       const w = wrap.clientWidth, h = wrap.clientHeight;
-      if (w > 0 && h > 0) rows = Math.max(15, Math.min(30, Math.floor(h / Math.max(1, Math.floor(w / COLS)))));
+      if (w > 0 && h > 0) rows = Math.max(15, Math.min(40, Math.floor(h / Math.max(1, Math.floor(w / COLS)))));
       const mx = Math.floor(COLS / 2) - 1, my = Math.floor(rows / 2);
       body = [{ x: mx, y: my }, { x: mx - 1, y: my }, { x: mx - 2, y: my }];
       dir = { x: 1, y: 0 }; queue = []; score = 0; dead = false; newBest = false;
@@ -139,21 +130,21 @@
     }
     function start() {
       if (state === 'over') reset();
-      state = 'run'; ov.hidden = true; clearTimeout(timer); timer = setTimeout(tick, delay());
+      state = 'run'; ov.hidden = true; clearTimeout(timer); timer = setTimeout(tick, delay()); syncKeys();
     }
     function pause() {
       if (state !== 'run') return;
-      clearTimeout(timer); state = 'pause';
+      clearTimeout(timer); state = 'pause'; syncKeys();
       overlay(ov, { title: 'Paused', lines: ['Score ' + fmt(score)], primary: 'Resume', onPrimary: start });
     }
     function over() {
-      clearTimeout(timer); state = 'over'; dead = true; draw(); refreshHome();
+      clearTimeout(timer); state = 'over'; dead = true; draw(); refreshHome(); syncKeys();
       overlay(ov, { title: 'Game over', lines: ['Score ' + fmt(score) + ' · Best ' + fmt(data.best.snake)], best: newBest && score > 0, primary: 'Play again', onPrimary: start });
     }
     function ready() {
-      clearTimeout(timer); state = 'ready'; reset();
+      clearTimeout(timer); state = 'ready'; reset(); syncKeys();
       const walls = PH.store.get('snakeWrap') ? 'Walls wrap around.' : "Don't hit the walls or yourself.";
-      overlay(ov, { title: 'Snake', lines: ['Swipe or use the arrow keys to steer. Eat the amber dots.', walls], primary: 'Play', onPrimary: start });
+      overlay(ov, { title: 'Snake', lines: ['Swipe anywhere on the screen to steer. Eat the amber dots.', walls], primary: 'Play', onPrimary: start });
     }
     const DIRS = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
     function steer(name) {
@@ -167,17 +158,14 @@
       if ((d.x === last.x && d.y === last.y) || (d.x === -last.x && d.y === -last.y)) return;
       if (queue.length < 3) queue.push(d);
     }
-    ownTouches(wrap); onSwipe(wrap, steer);
-    bindKeys('/snake', k => {
-      if (k === 'pause') return state === 'run' ? pause() : (state === 'pause' && start());
-      if (k === 'new') return ready();
-      steer(k);
-    });
+    ownTouches(view); onSwipe(view, steer);
     PH.on('snakeWrap', () => { if (state === 'ready') ready(); });
     ready();
     return {
       show() { if (state === 'ready') ready(); else fit(); },
       hide: pause, fit, pause, newGame: ready, key: steer,
+      get paused() { return state === 'pause'; },
+      act(a) { if (a === 'pause') state === 'run' ? pause() : state === 'pause' && start(); if (a === 'new') ready(); },
       space() { state === 'run' ? pause() : start(); },
     };
   })();
@@ -186,7 +174,7 @@
      2048
      ====================================================================== */
   const g2048 = (() => {
-    const wrap = $('#g2048-wrap'), box = $('#g2048-box'), grid = $('#g2048-grid'), ov = $('#g2048-ov');
+    const wrap = $('#g2048-wrap'), view = wrap.closest('.view'), box = $('#g2048-box'), grid = $('#g2048-grid'), ov = $('#g2048-ov');
     const cells = Array.from({ length: 16 }, () => { const d = document.createElement('div'); d.className = 'cell'; d.setAttribute('role', 'gridcell'); grid.appendChild(d); return d; });
     let s, prev = null;
     const valid = g => g && Array.isArray(g.g) && g.g.length === 16;
@@ -262,30 +250,32 @@
       if (s.score > 0 && !s.over && !(await PH.confirm('Start a new game? Your current score of ' + fmt(s.score) + ' ends here.', { title: 'New game', ok: 'New game' }))) return;
       newGame();
     }
-    ownTouches(wrap); onSwipe(wrap, move);
-    bindKeys('/2048', k => { if (k === 'undo') undo(); else if (k === 'new') askNew(); else move(k); });
+    ownTouches(view); onSwipe(view, move);
 
     if (valid(data.g2048)) { s = data.g2048; render(); if (s.over) overlay(ov, { title: 'No moves left', lines: ['Score ' + fmt(s.score)], primary: 'New game', onPrimary: newGame }); }
     else newGame();
-    return { show: fit, hide() {}, fit, newGame: askNew, reset: newGame, key: move, get score() { return s.score; } };
+    return { show: fit, hide() {}, fit, newGame: askNew, reset: newGame, key: move, act(a) { if (a === 'undo') undo(); if (a === 'new') askNew(); } };
   })();
 
   /* ======================================================================
      MINES
      ====================================================================== */
   const mines = (() => {
-    const wrap = $('#mines-wrap'), board = $('#mines-board'), statusEl = $('#mines-status');
-    const SIZES = { easy: { c: 8, r: 10, m: 10 }, normal: { c: 9, r: 13, m: 20 }, hard: { c: 10, r: 15, m: 32 } };
+    const wrap = $('#mines-wrap'), board = $('#mines-board');
+    // width is fixed per level; the field is as tall as the screen allows, mines scale with its size
+    const SIZES = { easy: { c: 8, d: .125 }, normal: { c: 9, d: .16 }, hard: { c: 10, d: .2 } };
     let cfg, diff, cells, btns = [], started, ended, flags, opened, hit, elapsed, t0, iv = null, mode = 'dig';
 
-    function status(t, cls = '') { statusEl.textContent = t; statusEl.className = 'status-line ' + cls; }
     function newGame() {
-      diff = SIZES[PH.store.get('minefield')] ? PH.store.get('minefield') : 'easy'; cfg = SIZES[diff];
+      diff = SIZES[PH.store.get('minefield')] ? PH.store.get('minefield') : 'easy';
+      const c = SIZES[diff].c, w = wrap.clientWidth, h = wrap.clientHeight;
+      const r = w && h ? Math.max(c, Math.min(24, Math.floor((h - 4) / ((w - 4) / c)))) : Math.round(c * 1.5);
+      cfg = { c, r, m: Math.round(c * r * SIZES[diff].d) };
       cells = Array.from({ length: cfg.c * cfg.r }, () => ({ mine: false, n: 0, open: false, flag: false }));
       started = ended = false; flags = opened = 0; hit = -1; elapsed = 0; stopTimer();
       board.textContent = ''; board.classList.remove('done'); board.style.setProperty('--cols', cfg.c);
       btns = cells.map((_, i) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.i = i; board.appendChild(b); return b; });
-      fit(); render(); status('Tap a square to start. Hold one to flag it.');
+      fit(); render();
     }
     const secs = () => Math.floor((elapsed + (iv !== null ? Date.now() - t0 : 0)) / 1000);
     function startTimer() { if (iv !== null) return; t0 = Date.now(); iv = setInterval(stats, 1000); }
@@ -312,7 +302,7 @@
     }
     function reveal(i) {
       const c = cells[i]; if (ended || c.open || c.flag) return;
-      if (!started) { plant(i); started = true; startTimer(); status(''); }
+      if (!started) { plant(i); started = true; startTimer(); }
       if (c.mine) return lose(i);
       const stack = [i];
       while (stack.length) {
@@ -335,14 +325,14 @@
     }
     function lose(i) {
       ended = true; hit = i; stopTimer(); board.classList.add('done');
-      status('Boom. Press New to try again.', 'lose'); refreshHome();
+      PH.toast('Boom. Tap ⟳ for a new field.', 'warn'); refreshHome();
     }
     function win() {
       ended = true; stopTimer(); board.classList.add('done');
       cells.forEach(c => { if (c.mine && !c.flag) { c.flag = true; flags++; } });
       const t = secs(), best = data.best.mines[diff], isBest = best == null || t < best;
       if (isBest) { data.best.mines[diff] = t; save(); }
-      status('Cleared in ' + fmtTime(t) + '.' + (isBest ? ' New best!' : ''), 'win'); refreshHome();
+      PH.toast('Cleared in ' + fmtTime(t) + '.' + (isBest ? ' New best!' : '')); refreshHome();
     }
     function render() {
       cells.forEach((c, i) => {
@@ -357,12 +347,13 @@
     }
     function fit() {
       const w = wrap.clientWidth, h = wrap.clientHeight; if (!w || !h || !cfg) return;
-      const cell = Math.floor(Math.min((w - 6 - (cfg.c - 1) * 2) / cfg.c, (h - 6 - (cfg.r - 1) * 2) / cfg.r, 52));
+      const cell = Math.floor(Math.min((w - 6 - (cfg.c - 1) * 2) / cfg.c, (h - 6 - (cfg.r - 1) * 2) / cfg.r, 60));
       board.style.setProperty('--cell', Math.max(18, cell) + 'px');
     }
     function setMode(m) {
       mode = m;
-      $$('.keypad[data-for="/mines"] [data-k="dig"], .keypad[data-for="/mines"] [data-k="flag"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === m)));
+      $('.hdr-keys [data-act="flag"]').setAttribute('aria-pressed', String(m === 'flag'));
+      if (m === 'flag') PH.toast('Flag mode: taps place flags.');
     }
     // taps, long-press flag, right-click flag
     let lpT = null, lpFired = false, px = 0, py = 0, ptype = '';
@@ -385,13 +376,14 @@
       e.preventDefault();
       const b = e.target.closest('button'); if (b && ptype === 'mouse') toggleFlag(+b.dataset.i);
     });
-    ownTouches(wrap);
-    bindKeys('/mines', k => { if (k === 'new') newGame(); else setMode(k); });
+    ownTouches(wrap.closest('.view'));
     PH.on('minefield', () => { if (!started || ended) newGame(); });
     newGame();
     return {
-      show() { fit(); if (started && !ended) startTimer(); stats(); },
-      hide: stopTimer, fit, pause: stopTimer, newGame, key() {},
+      show() { if (!started && !ended) newGame(); else fit(); if (started && !ended) startTimer(); stats(); },
+      hide: stopTimer, pause: stopTimer, newGame, key() {},
+      fit() { if (!started && !ended) newGame(); else fit(); },
+      act(a) { if (a === 'new') newGame(); if (a === 'flag') setMode(mode === 'flag' ? 'dig' : 'flag'); },
     };
   })();
 
@@ -399,7 +391,7 @@
      BLOCKS (falling-block puzzle)
      ====================================================================== */
   const blocks = (() => {
-    const wrap = $('#blocks-wrap'), cv = $('#blocks-cv'), nextCv = $('#blocks-next'), ov = $('#blocks-ov');
+    const wrap = $('#blocks-wrap'), view = wrap.closest('.view'), cv = $('#blocks-cv'), nextCv = $('#blocks-next'), ov = $('#blocks-ov');
     const W = 10, H = 20;
     const SHAPES = {
       I: [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]], O: [[1, 1], [1, 1]],
@@ -433,7 +425,7 @@
       if (collide(cur.m, cur.x, cur.y)) over();
     }
     function stats() {
-      $('#blocks-score').textContent = fmt(score); $('#blocks-lines').textContent = lines; $('#blocks-level').textContent = level;
+      $('#blocks-score').textContent = fmt(score); $('#blocks-level').textContent = level;
     }
     const gravity = () => Math.max(70, 800 * Math.pow(0.84, level - 1));
     function touched() { if (lockT !== null && resets < 15) { lockT = performance.now(); resets++; } }
@@ -493,9 +485,9 @@
       cur.m.forEach((row, r) => row.forEach((v, c) => { if (v && cur.y + r >= 0) cellAt(ctx, (cur.x + c) * cell, (cur.y + r) * cell, cell, COLOR[cur.k]); }));
     }
     function drawNext() {
-      if (!nctx) nctx = sizeCanvas(nextCv, 40, 20);
-      nctx.clearRect(0, 0, 40, 20);
-      const m = SHAPES[next].filter(r => r.some(Boolean)), s = 10, ox = (40 - m[0].length * s) / 2, oy = (20 - m.length * s) / 2;
+      if (!nctx) nctx = sizeCanvas(nextCv, 32, 16);
+      nctx.clearRect(0, 0, 32, 16);
+      const m = SHAPES[next].filter(r => r.some(Boolean)), s = 8, ox = (32 - m[0].length * s) / 2, oy = (16 - m.length * s) / 2;
       m.forEach((row, r) => row.forEach((v, c) => { if (v) cellAt(nctx, ox + c * s, oy + r * s, s, COLOR[next]); }));
     }
     function fit() {
@@ -506,57 +498,53 @@
     function start() {
       if (state === 'over' || state === 'ready') reset();
       if (state === 'over') return;   // topped out on spawn
-      state = 'run'; ov.hidden = true; last = performance.now(); acc = 0;
+      state = 'run'; ov.hidden = true; last = performance.now(); acc = 0; syncKeys();
       cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
     }
     function pause() {
       if (state !== 'run') return;
-      state = 'pause'; cancelAnimationFrame(raf);
+      state = 'pause'; cancelAnimationFrame(raf); syncKeys();
       overlay(ov, { title: 'Paused', lines: ['Score ' + fmt(score) + ' · Lines ' + lines], primary: 'Resume', onPrimary: resume });
     }
-    function resume() { if (state !== 'pause') return; state = 'run'; ov.hidden = true; last = performance.now(); raf = requestAnimationFrame(loop); }
+    function resume() { if (state !== 'pause') return; state = 'run'; ov.hidden = true; syncKeys(); last = performance.now(); raf = requestAnimationFrame(loop); }
     function over() {
-      state = 'over'; cancelAnimationFrame(raf); draw(); refreshHome();
+      state = 'over'; cancelAnimationFrame(raf); draw(); refreshHome(); syncKeys();
       overlay(ov, { title: 'Game over', lines: ['Score ' + fmt(score) + ' · Lines ' + lines, 'Best ' + fmt(data.best.blocks)], best: newBest && score > 0, primary: 'Play again', onPrimary: () => { state = 'ready'; start(); } });
     }
     function ready() {
-      state = 'ready'; cancelAnimationFrame(raf); reset(); draw();
-      overlay(ov, { title: 'Blocks', lines: ['Drag sideways to move, tap to rotate, flick down to drop.', 'Best ' + fmt(data.best.blocks)], primary: 'Play', onPrimary: start });
+      state = 'ready'; cancelAnimationFrame(raf); reset(); draw(); syncKeys();
+      overlay(ov, { title: 'Blocks', lines: ['Drag anywhere to move, tap to rotate, drag down to speed up, flick down to drop.', 'Best ' + fmt(data.best.blocks)], primary: 'Play', onPrimary: start });
     }
 
     // touch: drag moves cell by cell, tap rotates, quick flick down hard-drops
-    ownTouches(wrap);
+    ownTouches(view);
     let tx = null, ty, lx, ly, tt, moved;
-    wrap.addEventListener('touchstart', e => {
+    view.addEventListener('touchstart', e => {
       if (e.target.closest('.overlay')) return;
       const t = e.touches[0]; tx = lx = t.clientX; ty = ly = t.clientY; tt = performance.now(); moved = false;
     }, { passive: true });
-    wrap.addEventListener('touchmove', e => {
+    view.addEventListener('touchmove', e => {
       if (tx === null || state !== 'run') return;
       const t = e.touches[0], step = Math.max(14, cell * .9);
       while (t.clientX - lx >= step) { shift(1); lx += step; moved = true; }
       while (lx - t.clientX >= step) { shift(-1); lx -= step; moved = true; }
       while (t.clientY - ly >= step * 1.2) { soft(); ly += step * 1.2; moved = true; }
     }, { passive: true });
-    wrap.addEventListener('touchend', e => {
+    view.addEventListener('touchend', e => {
       if (tx === null) return;
       const t = e.changedTouches[0], dx = t.clientX - tx, dy = t.clientY - ty, dt = performance.now() - tt; tx = null;
       if (state !== 'run') return;
       if (dy > 50 && dt < 260 && Math.abs(dx) < dy * .6) hard();
       else if (!moved && Math.hypot(dx, dy) < 12) turn();
     }, { passive: true });
-    wrap.addEventListener('click', e => { if (!('ontouchstart' in window) && state === 'run' && !e.target.closest('.overlay')) turn(); });
+    view.addEventListener('click', e => { if (!('ontouchstart' in window) && state === 'run' && !e.target.closest('.overlay')) turn(); });
 
-    bindKeys('/blocks', k => {
-      if (k === 'pause') return state === 'run' ? pause() : state === 'pause' ? resume() : start();
-      if (state === 'pause') return resume();
-      if (state !== 'run') return (k === 'rot' || k === 'drop') && start();
-      ({ left: () => shift(-1), right: () => shift(1), down: soft, rot: turn, drop: hard })[k]();
-    }, ['left', 'right', 'down']);
     PH.on('ghost', draw);
     ready();
     return {
       show: fit, hide: pause, fit, pause, newGame: ready,
+      get paused() { return state === 'pause'; },
+      act(a) { if (a === 'pause') state === 'run' ? pause() : state === 'pause' ? resume() : start(); if (a === 'new') ready(); },
       key(d) { if (state !== 'run') return; ({ left: () => shift(-1), right: () => shift(1), down: soft, up: turn })[d](); },
       space() { state === 'run' ? hard() : state === 'pause' ? resume() : start(); },
     };
@@ -566,7 +554,6 @@
      Shell: routing, home, settings, data
      ====================================================================== */
   const games = { '/snake': snake, '/2048': g2048, '/mines': mines, '/blocks': blocks };
-  let active = null;
 
   function refreshHome() {
     const b = data.best, m = b.mines;
@@ -588,16 +575,19 @@
     const g = games[r] || null;
     if (active && active !== g) active.hide();
     active = g;
-    $$('.keypad[data-for]').forEach(k => { k.hidden = k.dataset.for !== r; });
     $('#actions').hidden = $('#actions-title').hidden = !g;
     if (g) { g.show(); requestAnimationFrame(() => g.fit()); }
+    syncKeys();
     if (!g) refreshHome();
   });
   addEventListener('resize', () => { active && active.fit(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && active) active.pause && active.pause(); });
   document.addEventListener('click', e => {
     if (e.target.closest('[data-open-sheet="menu"]') && active && active.pause && active !== mines) active.pause();
-    const a = e.target.closest('[data-action="new"]'); if (a && active) active.newGame();
+    const a = e.target.closest('[data-action]');
+    if (a && active) a.dataset.action === 'new' ? active.newGame() : active.act && active.act(a.dataset.action);
+    const k = e.target.closest('.hdr-keys [data-act]');
+    if (k && active && active.act) { e.stopPropagation(); active.act(k.dataset.act); }
   }, true);
   addEventListener('keydown', e => {
     if (!active || $('dialog[open]')) return;
@@ -615,7 +605,7 @@
   $('#reset-display').onclick = () => { PH.store.set('crt', true); PH.store.set('rain', false); PH.toast('Display reset.'); };
   $('#export').onclick = () => {
     const settings = {}; Object.keys({ ...DEFAULTS, crt: 1, rain: 1 }).forEach(k => { settings[k] = PH.store.get(k); });
-    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.0', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
+    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.1', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
   };
   $('#reset-scores').onclick = async () => {
     if (!(await PH.confirm('Reset all best scores and times? This can\'t be undone.', { title: 'Reset scores', ok: 'Reset', danger: true }))) return;
