@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <style>
 /* ==========================================================================
-   PHOSPHOR v1.8 — base stylesheet for Floyd's home-screen tools
+   PHOSPHOR v1.9 — base stylesheet for Floyd's home-screen tools
    Spec: brand-guidelines.md (same folder). Paste this whole file into a
    <style> block in index.html. No external fonts, images or network calls.
    ========================================================================== */
@@ -195,7 +195,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   height: var(--app-h, 100%);
   max-width: var(--maxw);
   margin: 0 auto;
-  padding: 0 calc(2px + var(--safe-right)) calc(var(--sp-1) + var(--safe-bottom)) calc(2px + var(--safe-left));
+  /* keys sit low: the space under them matches the space above them (v1.9) */
+  padding: 0 calc(2px + var(--safe-right)) max(var(--sp-3), calc(var(--safe-bottom) - 20px)) calc(2px + var(--safe-left));
   display: flex; flex-direction: column; gap: 6px;
 }
 .app > :not(.screen) { flex: none; }
@@ -246,15 +247,16 @@ a { color: var(--cyan); text-underline-offset: 3px; }
 .app-header {   /* the top band: runs edge to edge and up behind the iOS clock */
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
   margin: 0 calc(-2px - var(--safe-right)) 0 calc(-2px - var(--safe-left));
-  padding: var(--safe-top) calc(var(--sp-4) + var(--safe-right)) 0 calc(var(--sp-4) + var(--safe-left));
-  min-height: calc(var(--safe-top) + 30px);
+  /* title tucked right under the clock row (v1.9) */
+  padding: max(0px, calc(var(--safe-top) - 10px)) calc(var(--sp-4) + var(--safe-right)) 0 calc(var(--sp-4) + var(--safe-left));
+  min-height: calc(max(0px, calc(var(--safe-top) - 10px)) + 26px);
   background: none;   /* v1.8: same plastic as the rest of the case, no band */
 }
 .app-header .app-title { color: var(--ink); text-shadow: 0 1px 0 rgba(255, 255, 255, .45); font-size: 18px; }
 .app-header .app-meta { color: var(--ink-dim); }
 /* Three keys, centered under the screen, in thumb reach (v1.6):
    <nav class="app-controls"> ‹ back · ☰ menu · page action (or ■ home) </nav> */
-.app-controls { display: flex; align-items: center; justify-content: center; gap: var(--sp-5); min-height: 46px; padding-top: 2px; }
+.app-controls { display: flex; align-items: center; justify-content: center; gap: var(--sp-5); min-height: 44px; padding-top: 4px; }
 .app-controls > .grow { display: none; }
 .app-controls .key { min-width: 76px; min-height: 40px; font-size: var(--fs-lg); }
 .app-controls .key.word { font-size: var(--fs-sm); }
@@ -818,7 +820,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
   <main class="app">
     <header class="app-header">
       <h1 class="app-title" data-view-title>Arcade</h1>
-      <span class="app-meta">v1.6</span>
+      <span class="app-meta">v1.7</span>
     </header>
     <div class="screen">
       <canvas class="rain" aria-hidden="true" hidden></canvas>
@@ -915,7 +917,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
         <div class="menu-group">
           <span class="label">About</span>
           <div class="menu">
-            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.6</span></a>
+            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.7</span></a>
           </div>
         </div>
       </section>
@@ -966,7 +968,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
 
       <section class="view" data-route="/settings/about" data-title="About">
         <section class="panel" data-title="Phosphor Arcade">
-          <div class="kv"><span>Version</span><span>1.6</span></div>
+          <div class="kv"><span>Version</span><span>1.7</span></div>
           <div class="kv"><span>Games</span><span>4</span></div>
           <div class="kv"><span>Works offline</span><span class="t-accent">Yes</span></div>
           <div class="kv"><span>Storage</span><span>This phone</span></div>
@@ -1015,7 +1017,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
   <div class="toast-host" aria-live="polite"></div>
   <script>
 /* ==========================================================================
-   PHOSPHOR v1.8 runtime: navigation, settings, sheets, toasts, confirm.
+   PHOSPHOR v1.9 runtime: navigation, settings, sheets, toasts, confirm.
    Spec: brand-guidelines.md section 7. Paste this whole file into a <script>
    at the end of <body>, after the markup. No dependencies, no network.
    Set a unique key per tool: <html data-app="tip-calc">
@@ -1846,7 +1848,7 @@ const PH = (() => {
   $('#reset-display').onclick = () => { PH.store.set('crt', true); PH.store.set('rain', false); PH.toast('Display reset.'); };
   $('#export').onclick = () => {
     const settings = {}; Object.keys({ ...DEFAULTS, crt: 1, rain: 1 }).forEach(k => { settings[k] = PH.store.get(k); });
-    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.6', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
+    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.7', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
   };
   $('#reset-scores').onclick = async () => {
     if (!(await PH.confirm('Reset all best scores and times? This can\'t be undone.', { title: 'Reset scores', ok: 'Reset', danger: true }))) return;
