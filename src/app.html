@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en" data-app="phosphor-arcade">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Phosphor Arcade</title>
+  <meta name="theme-color" content="#2B261E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Arcade">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <style>
+/*@@PHOSPHOR_CSS@@*/
+    /* === tool-specific styles below === */
+    .view.game { flex: 1 1 auto; min-height: 0; gap: var(--sp-3); }
+    .screen-body:has(.view.game.is-active) { padding-bottom: var(--sp-4); overflow: hidden; }
+
+    .stats { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: var(--sp-2); flex: none; }
+    .stat {
+      display: flex; flex-direction: column; gap: 0; min-width: 0;
+      padding: 6px var(--sp-3);
+      background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--radius);
+    }
+    .stat .label { font-size: var(--fs-xs); }
+    .stat-v { font-size: var(--fs-lg); font-weight: 700; line-height: var(--lh-tight); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat canvas { width: 40px; height: 20px; margin-top: 2px; }
+
+    .board-wrap {
+      position: relative; flex: 1 1 auto; min-height: 0;
+      display: flex; align-items: center; justify-content: center;
+      touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    }
+    .board-box { position: relative; flex: none; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg); }
+    .board-box canvas { display: block; }
+    .overlay {
+      position: absolute; inset: 0; z-index: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: var(--sp-3); padding: var(--sp-4); text-align: center;
+      background: rgba(3, 7, 3, .86);
+    }
+    .overlay h2 { color: var(--accent); text-shadow: var(--glow-lg); text-transform: uppercase; letter-spacing: .1em; }
+    .overlay p { color: var(--text-dim); font-size: var(--fs-sm); max-width: 30ch; }
+    .overlay p.new-best { color: var(--amber); font-weight: 700; }
+    .overlay .btn { min-width: 170px; }
+    .status-line { flex: none; text-align: center; font-size: var(--fs-xs); color: var(--text-dim); min-height: 18px; }
+    .status-line.win { color: var(--accent); }
+    .status-line.lose { color: var(--red); }
+    .status-line.lose::before { content: "ERR> "; font-weight: 700; }
+
+    .keypad .key.word { font-size: var(--fs-sm); }
+    .keypad.one-row .key { min-height: 52px; }
+
+    /* Home */
+    .marquee { text-align: center; padding: var(--sp-5) var(--sp-4); }
+    .marquee .readout { font-size: 36px; letter-spacing: .14em; }
+    .view[data-route="/"] .mi-value { flex: none; max-width: none; }
+    .marquee p { margin-top: var(--sp-2); color: var(--text-dim); font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: var(--tracking-label); }
+
+    /* 2048 */
+    .g2048 { --gap: 6px; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: var(--gap); padding: var(--gap); width: 100%; height: 100%; }
+    .g2048 .cell {
+      display: grid; place-items: center; min-width: 0;
+      background: var(--surface-1); border: 1px dashed var(--line); border-radius: var(--radius-sm);
+      font-weight: 700; font-size: calc(var(--cs, 70px) * .4); color: var(--text-dim);
+    }
+    .g2048 .cell.d3 { font-size: calc(var(--cs, 70px) * .34); }
+    .g2048 .cell.d4 { font-size: calc(var(--cs, 70px) * .27); }
+    .g2048 .cell.d5 { font-size: calc(var(--cs, 70px) * .22); }
+    .g2048 .tile { border-style: solid; }
+    .g2048 .t1  { color: var(--text-dim); border-color: var(--line); background: var(--surface-2); }
+    .g2048 .t2  { color: var(--text); border-color: var(--line); background: var(--surface-2); }
+    .g2048 .t3  { color: var(--text); border-color: var(--line-strong); background: var(--surface-2); }
+    .g2048 .t4  { color: var(--cyan); border-color: var(--cyan); background: var(--surface-2); }
+    .g2048 .t5  { color: var(--accent); border-color: var(--accent-dim); background: var(--surface-2); }
+    .g2048 .t6  { color: var(--accent); border-color: var(--accent); background: var(--surface-3); text-shadow: var(--glow); }
+    .g2048 .t7  { color: var(--on-accent); border-color: var(--accent-dim); background: var(--accent-dim); }
+    .g2048 .t8  { color: var(--on-accent); border-color: var(--accent); background: var(--accent-dim); box-shadow: var(--glow-box); }
+    .g2048 .t9  { color: var(--on-accent); border-color: var(--accent); background: var(--accent); }
+    .g2048 .t10 { color: var(--on-accent); border-color: var(--accent); background: var(--accent); box-shadow: var(--glow-box); }
+    .g2048 .t11 { color: var(--on-accent); border-color: var(--amber); background: var(--amber); box-shadow: 0 0 14px rgba(255, 177, 59, .5); }
+    .g2048 .t12 { color: var(--on-accent); border-color: var(--cyan); background: var(--cyan); }
+    .g2048 .pop   { animation: pop var(--dur) var(--ease-steps) both; }
+    .g2048 .merge { animation: merge var(--dur) var(--ease-steps) both; }
+    @keyframes pop   { from { transform: scale(.4); opacity: .2; } }
+    @keyframes merge { 50% { transform: scale(1.12); } }
+
+    /* Minesweeper */
+    .mines { --cell: 36px; display: grid; grid-template-columns: repeat(var(--cols, 8), var(--cell)); grid-auto-rows: var(--cell); gap: 2px; padding: 2px; }
+    .mines button {
+      appearance: none; -webkit-appearance: none; margin: 0; padding: 0;
+      display: grid; place-items: center;
+      border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+      background: var(--surface-3); color: var(--text); box-shadow: inset 0 1px 0 rgba(201, 245, 211, .1);
+      font: inherit; font-weight: 700; font-size: calc(var(--cell) * .5); line-height: 1;
+      touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    }
+    .mines button:active:not(.open) { background: var(--line); }
+    .mines button.open { background: var(--bg); border-color: rgba(31, 61, 38, .5); box-shadow: none; }
+    .mines .n1 { color: var(--cyan); }
+    .mines .n2 { color: var(--accent); }
+    .mines .n3 { color: var(--amber); }
+    .mines .n4, .mines .n5, .mines .n6, .mines .n7, .mines .n8 { color: var(--red); }
+    .mines .flag { color: var(--amber); }
+    .mines .mine { color: var(--red); }
+    .mines .hit { background: rgba(255, 92, 92, .3); border-color: var(--red); }
+    .mines .wrong { color: var(--red); text-decoration: line-through; }
+    .mines.done button { pointer-events: none; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="app-header">
+      <button class="key key-sm" data-back hidden aria-label="Back">‹</button>
+      <h1 class="app-title" data-view-title>Arcade</h1>
+      <span class="app-meta">v1.0</span>
+      <button class="key key-sm" data-open-sheet="menu" aria-label="Menu">☰</button>
+    </header>
+    <div class="screen">
+      <canvas class="rain" aria-hidden="true" hidden></canvas>
+      <nav class="path" data-path aria-label="Location"></nav>
+      <div class="screen-body">
+
+      <!-- ============ HOME ============ -->
+      <section class="view" data-route="/" data-title="Arcade">
+        <section class="panel marquee">
+          <div class="readout">ARCADE</div>
+          <p>Insert coin<span class="cursor" aria-hidden="true"></span></p>
+        </section>
+        <div class="menu-group">
+          <span class="label">Games</span>
+          <div class="menu">
+            <a class="menu-item" href="#/snake"><span class="mi-glyph" aria-hidden="true">~</span><span class="mi-label">Snake<small>Eat, grow, don't bite yourself</small></span><span class="mi-value" id="home-snake">—</span></a>
+            <a class="menu-item" href="#/2048"><span class="mi-glyph" aria-hidden="true">#</span><span class="mi-label">2048<small>Slide and merge to 2048</small></span><span class="mi-value" id="home-2048">—</span></a>
+            <a class="menu-item" href="#/mines"><span class="mi-glyph" aria-hidden="true">*</span><span class="mi-label">Mines<small>Clear the field without a boom</small></span><span class="mi-value" id="home-mines">—</span></a>
+            <a class="menu-item" href="#/blocks"><span class="mi-glyph" aria-hidden="true">▓</span><span class="mi-label">Blocks<small>Stack pieces, clear lines</small></span><span class="mi-value" id="home-blocks">—</span></a>
+          </div>
+          <p class="menu-note">Best scores stay on this phone. Everything works offline.</p>
+        </div>
+      </section>
+
+      <!-- ============ SNAKE ============ -->
+      <section class="view game" data-route="/snake" data-title="Snake">
+        <div class="stats" style="--n:2">
+          <div class="stat"><span class="label">Score</span><span class="stat-v glow" id="snake-score">0</span></div>
+          <div class="stat"><span class="label">Best</span><span class="stat-v" id="snake-best">0</span></div>
+        </div>
+        <div class="board-wrap" id="snake-wrap">
+              <div class="overlay" id="snake-ov"></div>
+          <div class="board-box" id="snake-box">
+            <canvas id="snake-cv" aria-label="Snake board"></canvas>
+          </div>
+        </div>
+        <p class="status-line">Swipe on the screen or use the keys below.</p>
+      </section>
+
+      <!-- ============ 2048 ============ -->
+      <section class="view game" data-route="/2048" data-title="2048">
+        <div class="stats" style="--n:2">
+          <div class="stat"><span class="label">Score</span><span class="stat-v glow" id="g2048-score">0</span></div>
+          <div class="stat"><span class="label">Best</span><span class="stat-v" id="g2048-best">0</span></div>
+        </div>
+        <div class="board-wrap" id="g2048-wrap">
+              <div class="overlay" id="g2048-ov" hidden></div>
+          <div class="board-box" id="g2048-box">
+            <div class="g2048" id="g2048-grid" role="grid" aria-label="2048 board"></div>
+          </div>
+        </div>
+        <p class="status-line">Swipe to slide the tiles. Equal numbers merge.</p>
+      </section>
+
+      <!-- ============ MINES ============ -->
+      <section class="view game" data-route="/mines" data-title="Mines">
+        <div class="stats" style="--n:3">
+          <div class="stat"><span class="label">Mines</span><span class="stat-v glow" id="mines-left">0</span></div>
+          <div class="stat"><span class="label">Time</span><span class="stat-v" id="mines-time">0:00</span></div>
+          <div class="stat"><span class="label">Best</span><span class="stat-v" id="mines-best">—</span></div>
+        </div>
+        <div class="board-wrap" id="mines-wrap">
+          <div class="board-box">
+            <div class="mines" id="mines-board" aria-label="Minefield"></div>
+          </div>
+        </div>
+        <p class="status-line" id="mines-status" aria-live="polite"></p>
+      </section>
+
+      <!-- ============ BLOCKS ============ -->
+      <section class="view game" data-route="/blocks" data-title="Blocks">
+        <div class="stats" style="--n:4">
+          <div class="stat"><span class="label">Score</span><span class="stat-v glow" id="blocks-score">0</span></div>
+          <div class="stat"><span class="label">Lines</span><span class="stat-v" id="blocks-lines">0</span></div>
+          <div class="stat"><span class="label">Level</span><span class="stat-v" id="blocks-level">1</span></div>
+          <div class="stat"><span class="label">Next</span><canvas id="blocks-next" aria-hidden="true"></canvas></div>
+        </div>
+        <div class="board-wrap" id="blocks-wrap">
+              <div class="overlay" id="blocks-ov"></div>
+          <div class="board-box" id="blocks-box">
+            <canvas id="blocks-cv" aria-label="Blocks board"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ SETTINGS ============ -->
+      <section class="view" data-route="/settings" data-title="Settings">
+        <div class="menu-group">
+          <span class="label">General</span>
+          <div class="menu">
+            <a class="menu-item" href="#/settings/snake-speed"><span class="mi-glyph" aria-hidden="true">~</span><span class="mi-label">Snake speed</span><span class="mi-value" data-setting-value="snakeSpeed"></span></a>
+            <label class="menu-item"><span class="mi-glyph" aria-hidden="true">↻</span><span class="mi-label">Snake wraps<small>Pass through walls instead of crashing</small></span><input type="checkbox" role="switch" class="mi-switch" data-setting="snakeWrap"></label>
+            <a class="menu-item" href="#/settings/minefield"><span class="mi-glyph" aria-hidden="true">*</span><span class="mi-label">Minefield</span><span class="mi-value" data-setting-value="minefield"></span></a>
+            <label class="menu-item"><span class="mi-glyph" aria-hidden="true">□</span><span class="mi-label">Ghost piece<small>Show where Blocks pieces will land</small></span><input type="checkbox" role="switch" class="mi-switch" data-setting="ghost"></label>
+          </div>
+        </div>
+        <div class="menu-group">
+          <span class="label">Appearance</span>
+          <div class="menu">
+            <a class="menu-item" href="#/settings/display"><span class="mi-glyph" aria-hidden="true">▣</span><span class="mi-label">Display</span><span class="mi-value">CRT <span data-setting-value="crt"></span></span></a>
+          </div>
+        </div>
+        <div class="menu-group">
+          <span class="label">Data</span>
+          <div class="menu">
+            <a class="menu-item" href="#/settings/scores"><span class="mi-glyph" aria-hidden="true">▲</span><span class="mi-label">Best scores</span></a>
+            <button class="menu-item" id="export"><span class="mi-glyph" aria-hidden="true">↑</span><span class="mi-label">Export data</span></button>
+            <button class="menu-item danger" id="erase"><span class="mi-glyph" aria-hidden="true">✕</span><span class="mi-label">Erase all data</span></button>
+          </div>
+          <p class="menu-note">Scores and your 2048 game stay on this phone. Export makes a backup file you can save to Files.</p>
+        </div>
+        <div class="menu-group">
+          <span class="label">About</span>
+          <div class="menu">
+            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.0</span></a>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-route="/settings/snake-speed" data-title="Snake speed">
+        <div class="menu" role="radiogroup" aria-label="Snake speed">
+          <button class="menu-item" role="radio" data-setting="snakeSpeed" data-value="slow" data-back-on-pick><span class="mi-label">Slow<small>Relaxed, good for learning</small></span></button>
+          <button class="menu-item" role="radio" data-setting="snakeSpeed" data-value="normal" data-back-on-pick><span class="mi-label">Normal</span></button>
+          <button class="menu-item" role="radio" data-setting="snakeSpeed" data-value="fast" data-back-on-pick><span class="mi-label">Fast<small>For quick thumbs</small></span></button>
+        </div>
+        <p class="menu-note">The snake speeds up a little as it grows.</p>
+      </section>
+
+      <section class="view" data-route="/settings/minefield" data-title="Minefield">
+        <div class="menu" role="radiogroup" aria-label="Minefield size">
+          <button class="menu-item" role="radio" data-setting="minefield" data-value="easy" data-back-on-pick><span class="mi-label">Easy<small>8 × 10, 10 mines</small></span></button>
+          <button class="menu-item" role="radio" data-setting="minefield" data-value="normal" data-back-on-pick><span class="mi-label">Normal<small>9 × 13, 20 mines</small></span></button>
+          <button class="menu-item" role="radio" data-setting="minefield" data-value="hard" data-back-on-pick><span class="mi-label">Hard<small>10 × 15, 32 mines</small></span></button>
+        </div>
+        <p class="menu-note">A game in progress keeps its size; the next game uses the new one. Each size keeps its own best time.</p>
+      </section>
+
+      <section class="view" data-route="/settings/display" data-title="Display">
+        <div class="menu">
+          <label class="menu-item"><span class="mi-label">CRT scanlines<small>Faint lines and vignette on the screen</small></span><input type="checkbox" role="switch" class="mi-switch" data-setting="crt"></label>
+          <label class="menu-item"><span class="mi-label">Matrix rain<small>Falling code behind the screen</small></span><input type="checkbox" role="switch" class="mi-switch" data-setting="rain"></label>
+        </div>
+        <p class="menu-note">Animations turn off automatically when Reduce Motion is on.</p>
+        <div class="menu">
+          <button class="menu-item" id="reset-display"><span class="mi-label">Reset display to defaults</span></button>
+        </div>
+      </section>
+
+      <section class="view" data-route="/settings/scores" data-title="Best scores">
+        <section class="panel" data-title="Best">
+          <div class="kv"><span>Snake</span><span id="sc-snake">—</span></div>
+          <div class="kv"><span>2048</span><span id="sc-2048">—</span></div>
+          <div class="kv"><span>Blocks</span><span id="sc-blocks">—</span></div>
+          <hr class="divider">
+          <div class="kv"><span>Mines easy</span><span id="sc-mines-easy">—</span></div>
+          <div class="kv"><span>Mines normal</span><span id="sc-mines-normal">—</span></div>
+          <div class="kv"><span>Mines hard</span><span id="sc-mines-hard">—</span></div>
+        </section>
+        <div class="menu">
+          <button class="menu-item danger" id="reset-scores"><span class="mi-glyph" aria-hidden="true">✕</span><span class="mi-label">Reset best scores</span></button>
+        </div>
+      </section>
+
+      <section class="view" data-route="/settings/about" data-title="About">
+        <section class="panel" data-title="Phosphor Arcade">
+          <div class="kv"><span>Version</span><span>1.0</span></div>
+          <div class="kv"><span>Games</span><span>4</span></div>
+          <div class="kv"><span>Works offline</span><span class="t-accent">Yes</span></div>
+          <div class="kv"><span>Storage</span><span>This phone</span></div>
+        </section>
+        <section class="panel" data-title="Controls">
+          <ul class="list plain small">
+            <li>Snake: swipe or arrow keys to steer.</li>
+            <li>2048: swipe or arrow keys; Undo takes back one move.</li>
+            <li>Mines: tap to dig, hold or use Flag mode to flag. Tap a number to clear around it.</li>
+            <li>Blocks: drag to move, tap to rotate, flick down to drop.</li>
+          </ul>
+        </section>
+      </section>
+
+      </div><!-- /.screen-body -->
+    </div><!-- /.screen -->
+
+    <section class="keypad" data-for="/snake" aria-label="Snake keys" hidden>
+      <button class="key word" data-k="pause">Pause</button><button class="key" data-k="up" aria-label="Up">↑</button><button class="key word" data-k="new">New</button>
+      <button class="key" data-k="left" aria-label="Left">←</button><button class="key" data-k="down" aria-label="Down">↓</button><button class="key" data-k="right" aria-label="Right">→</button>
+    </section>
+    <section class="keypad" data-for="/2048" aria-label="2048 keys" hidden>
+      <button class="key word" data-k="undo">Undo</button><button class="key" data-k="up" aria-label="Up">↑</button><button class="key word" data-k="new">New</button>
+      <button class="key" data-k="left" aria-label="Left">←</button><button class="key" data-k="down" aria-label="Down">↓</button><button class="key" data-k="right" aria-label="Right">→</button>
+    </section>
+    <section class="keypad one-row" data-for="/mines" aria-label="Mines keys" hidden>
+      <button class="key word" data-k="dig" aria-pressed="true">Dig</button><button class="key word" data-k="flag" aria-pressed="false">Flag</button><button class="key word key-dark" data-k="new">New</button>
+    </section>
+    <section class="keypad" data-for="/blocks" aria-label="Blocks keys" hidden>
+      <button class="key word" data-k="pause">Pause</button><button class="key" data-k="rot" aria-label="Rotate">⟳</button><button class="key word" data-k="drop">Drop</button>
+      <button class="key" data-k="left" aria-label="Left">←</button><button class="key" data-k="down" aria-label="Down">↓</button><button class="key" data-k="right" aria-label="Right">→</button>
+    </section>
+  </main>
+
+  <dialog class="sheet dropdown" id="menu" aria-label="Menu">
+    <div class="sheet-title">Go to</div>
+    <div class="menu" data-sections>
+      <button class="menu-item" data-route="/"><span class="mi-glyph" aria-hidden="true">■</span><span class="mi-label">Arcade</span></button>
+      <button class="menu-item" data-route="/snake"><span class="mi-glyph" aria-hidden="true">~</span><span class="mi-label">Snake</span></button>
+      <button class="menu-item" data-route="/2048"><span class="mi-glyph" aria-hidden="true">#</span><span class="mi-label">2048</span></button>
+      <button class="menu-item" data-route="/mines"><span class="mi-glyph" aria-hidden="true">*</span><span class="mi-label">Mines</span></button>
+      <button class="menu-item" data-route="/blocks"><span class="mi-glyph" aria-hidden="true">▓</span><span class="mi-label">Blocks</span></button>
+      <button class="menu-item" data-route="/settings"><span class="mi-glyph" aria-hidden="true">⚙</span><span class="mi-label">Settings</span></button>
+    </div>
+    <div class="sheet-title" id="actions-title" hidden>Actions</div>
+    <div class="menu" id="actions" hidden>
+      <button class="menu-item" data-action="new"><span class="mi-glyph" aria-hidden="true">+</span><span class="mi-label">New game</span></button>
+    </div>
+  </dialog>
+
+  <div class="toast-host" aria-live="polite"></div>
+  <script>
+/*@@PHOSPHOR_JS@@*/
+  </script>
+  <script>
+/*@@APP_JS@@*/
+  </script>
+  <script>
+(() => {
+  const c = document.querySelector('.rain');
+  if (!c || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const x = c.getContext('2d'), glyphs = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄ0123456789<>/=+*';
+  let cols, drops, fs = 16, last = 0, raf;
+  const size = () => { c.width = c.offsetWidth; c.height = c.offsetHeight;
+    cols = Math.ceil(c.width / fs); drops = Array.from({length: cols}, () => Math.random() * -50); };
+  const tick = t => { raf = requestAnimationFrame(tick); if (t - last < 50) return; last = t;
+    x.fillStyle = 'rgba(3,7,3,.12)'; x.fillRect(0, 0, c.width, c.height);  // c sized to .screen in size()
+    x.fillStyle = '#39FF6A'; x.font = fs + 'px ui-monospace, monospace';
+    drops.forEach((y, i) => { x.fillText(glyphs[Math.random() * glyphs.length | 0], i * fs, y * fs);
+      drops[i] = y * fs > c.height && Math.random() > .975 ? 0 : y + 1; }); };
+  addEventListener('resize', size); size(); raf = requestAnimationFrame(tick);
+  document.addEventListener('visibilitychange', () =>
+    document.hidden ? cancelAnimationFrame(raf) : (raf = requestAnimationFrame(tick)));
+})();
+  </script>
+</body>
+</html>
