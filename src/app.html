@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Phosphor Arcade</title>
-  <meta name="theme-color" content="#D4C8AF">
+  <meta name="theme-color" content="#9C8E70">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Arcade">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -97,7 +97,7 @@
   <main class="app">
     <header class="app-header">
       <h1 class="app-title" data-view-title>Arcade</h1>
-      <span class="app-meta">v1.3</span>
+      <span class="app-meta">v1.4</span>
     </header>
     <div class="screen">
       <canvas class="rain" aria-hidden="true" hidden></canvas>
@@ -194,7 +194,7 @@
         <div class="menu-group">
           <span class="label">About</span>
           <div class="menu">
-            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.3</span></a>
+            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.4</span></a>
           </div>
         </div>
       </section>
@@ -245,7 +245,7 @@
 
       <section class="view" data-route="/settings/about" data-title="About">
         <section class="panel" data-title="Phosphor Arcade">
-          <div class="kv"><span>Version</span><span>1.3</span></div>
+          <div class="kv"><span>Version</span><span>1.4</span></div>
           <div class="kv"><span>Games</span><span>4</span></div>
           <div class="kv"><span>Works offline</span><span class="t-accent">Yes</span></div>
           <div class="kv"><span>Storage</span><span>This phone</span></div>
@@ -264,21 +264,13 @@
     </div><!-- /.screen -->
 
     <nav class="app-controls" aria-label="Controls">
-      <button class="key key-sm" data-back hidden aria-label="Back">‹</button>
-      <span class="grow"></span>
-      <div class="page-keys" data-show-on="/snake /blocks" hidden>
-        <button class="key key-sm" data-act="pause" aria-label="Pause">II</button>
-        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
-      </div>
-      <div class="page-keys" data-show-on="/2048" hidden>
-        <button class="key key-sm word" data-act="undo">Undo</button>
-        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
-      </div>
-      <div class="page-keys" data-show-on="/mines" hidden>
-        <button class="key key-sm" data-act="flag" aria-pressed="false" aria-label="Flag mode">▲</button>
-        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
-      </div>
+      <button class="key key-sm" data-back aria-label="Back">‹</button>
       <button class="key key-sm" data-open-sheet="menu" aria-label="Menu">☰</button>
+      <button class="key key-sm" data-route="/" data-hide-on="/ /snake /2048 /mines /blocks" aria-label="Arcade home">■</button>
+      <button class="key key-sm" data-route="/settings" data-show-on="/" hidden aria-label="Settings">⚙</button>
+      <div class="page-keys" data-show-on="/snake /blocks" hidden><button class="key key-sm" data-act="pause" aria-label="Pause">II</button></div>
+      <div class="page-keys" data-show-on="/2048" hidden><button class="key key-sm word" data-act="undo">Undo</button></div>
+      <div class="page-keys" data-show-on="/mines" hidden><button class="key key-sm" data-act="flag" aria-pressed="false" aria-label="Flag mode">▲</button></div>
     </nav>
   </main>
 
