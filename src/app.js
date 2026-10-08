@@ -69,7 +69,7 @@
 
   let active = null;   // the game on screen, if any
   const syncKeys = () => {
-    const b = $('.hdr-keys [data-act="pause"]');
+    const b = $('.page-keys [data-act="pause"]');
     if (b) { const p = !!(active && active.paused); b.textContent = p ? '▸' : 'II'; b.setAttribute('aria-label', p ? 'Resume' : 'Pause'); }
   };
 
@@ -352,7 +352,7 @@
     }
     function setMode(m) {
       mode = m;
-      $('.hdr-keys [data-act="flag"]').setAttribute('aria-pressed', String(m === 'flag'));
+      $('.page-keys [data-act="flag"]').setAttribute('aria-pressed', String(m === 'flag'));
       if (m === 'flag') PH.toast('Flag mode: taps place flags.');
     }
     // taps, long-press flag, right-click flag
@@ -586,7 +586,7 @@
     if (e.target.closest('[data-open-sheet="menu"]') && active && active.pause && active !== mines) active.pause();
     const a = e.target.closest('[data-action]');
     if (a && active) a.dataset.action === 'new' ? active.newGame() : active.act && active.act(a.dataset.action);
-    const k = e.target.closest('.hdr-keys [data-act]');
+    const k = e.target.closest('.page-keys [data-act]');
     if (k && active && active.act) { e.stopPropagation(); active.act(k.dataset.act); }
   }, true);
   addEventListener('keydown', e => {
@@ -605,7 +605,7 @@
   $('#reset-display').onclick = () => { PH.store.set('crt', true); PH.store.set('rain', false); PH.toast('Display reset.'); };
   $('#export').onclick = () => {
     const settings = {}; Object.keys({ ...DEFAULTS, crt: 1, rain: 1 }).forEach(k => { settings[k] = PH.store.get(k); });
-    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.2', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
+    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.3', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
   };
   $('#reset-scores').onclick = async () => {
     if (!(await PH.confirm('Reset all best scores and times? This can\'t be undone.', { title: 'Reset scores', ok: 'Reset', danger: true }))) return;

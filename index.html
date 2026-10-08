@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Phosphor Arcade</title>
-  <meta name="theme-color" content="#D9CDB4">
+  <meta name="theme-color" content="#D4C8AF">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <style>
 /* ==========================================================================
-   PHOSPHOR v1.4 — base stylesheet for Floyd's home-screen tools
+   PHOSPHOR v1.5 — base stylesheet for Floyd's home-screen tools
    Spec: brand-guidelines.md (same folder). Paste this whole file into a
    <style> block in index.html. No external fonts, images or network calls.
    ========================================================================== */
@@ -52,13 +52,15 @@
   --plastic-shade: #BFB193;  /* recesses, bezel slope */
   --plastic-dark:  #9C8E70;  /* keycap sides, seams */
   --trim:          #2B261E;  /* dark brown trim band, status-bar strip */
+  /* iOS status bar: <meta name="theme-color" content="#D4C8AF"> + status-bar-style "default".
+     #D4C8AF renders on iPhone as the textured case's average colour (measured v1.5). */
   --ink:           #2B261E;  /* text on plastic, 9.5:1 */
   --ink-dim:       #5E5442;  /* labels on plastic, 4.7:1 */
   --ink-red:       #8A3A1A;  /* destructive label on plastic, 4.9:1 */
   --plastic-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .3 0 0 0 0 .2 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
   --key-shadow: 0 3px 0 var(--plastic-dark), 0 4px 6px rgba(43, 38, 30, .35), inset 0 1px 0 rgba(255, 255, 255, .7);
   --key-shadow-pressed: 0 1px 0 var(--plastic-dark), 0 1px 2px rgba(43, 38, 30, .3), inset 0 1px 2px rgba(43, 38, 30, .2);
-  --screen-radius: 18px;
+  --screen-radius: 38px;   /* follows the iPhone's own rounded display corners (v1.5) */
 
   /* Glow (accent only, never body text) */
   --glow:    0 0 6px rgba(57, 255, 106, .55);
@@ -240,11 +242,15 @@ a { color: var(--cyan); text-underline-offset: 3px; }
 }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* ---------- 6. Header (on the plastic case) ---------- */
+/* ---------- 6. Header (title only) + bottom controls (on the plastic case) ---------- */
 .app-header {
   display: flex; align-items: center; justify-content: space-between;
-  gap: var(--sp-2); padding: 0 var(--sp-1);
+  gap: var(--sp-2); padding: 0 var(--sp-3); min-height: 32px;
 }
+/* All keys live in one row under the screen, in thumb reach (v1.5):
+   <nav class="app-controls"> back ‹ · spacer · page keys · ☰ </nav> */
+.app-controls { display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-2); min-height: 40px; }
+.app-controls > .grow { flex: 1 1 auto; }
 .app-title {
   display: flex; align-items: center; gap: var(--sp-2);
   font-size: var(--fs-lg); font-weight: 700; text-transform: uppercase;
@@ -541,11 +547,12 @@ dialog.dialog .actions { display: flex; justify-content: flex-end; gap: var(--sp
 }
 
 /* ---------- 21. Navigation: header keys, views, path ---------- */
-/* Header layout: <header class="app-header">
-     <button class="key key-sm" data-back hidden aria-label="Back">‹</button>
-     <h1 class="app-title" data-view-title>Tool</h1>
+/* Header: <header class="app-header"><h1 class="app-title" data-view-title>Tool</h1><span class="app-meta">v1.0</span></header>
+   Controls (last child of .app): <nav class="app-controls">
+     <button class="key key-sm" data-back hidden aria-label="Back">‹</button><span class="grow"></span>
+     <div class="page-keys" data-show-on="/x" hidden>…</div>
      <button class="key key-sm" data-open-sheet="menu" aria-label="Menu">☰</button>
-   </header> */
+   </nav> */
 .app-header .app-title { flex: 1 1 auto; min-width: 0; }
 .app-title > span, .app-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .key-sm { min-height: 36px; min-width: 44px; padding: 0 var(--sp-2); font-size: var(--fs-lg); line-height: 1; border-radius: 5px; }
@@ -653,11 +660,11 @@ dialog.sheet::before {  /* grab handle */
 .sheet-title { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: var(--tracking-label); color: var(--text-dim); text-align: center; }
 @keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } }
 
-/* Dropdown menu from the top (the standard app menu, opened by the ☰ key):
+/* The app menu, opened by the ☰ key in the bottom controls; it pops up above it:
    <dialog class="sheet dropdown" id="menu">…</dialog> */
 dialog.sheet.dropdown {
-  inset: calc(var(--safe-top) + 52px) calc(var(--sp-2) + var(--safe-right)) auto auto;
-  width: min(calc(100vw - 16px), 340px); max-height: calc(100dvh - var(--safe-top) - 72px);
+  inset: auto calc(var(--sp-2) + var(--safe-right)) calc(var(--safe-bottom) + 60px) auto;
+  width: min(calc(100vw - 16px), 340px); max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 80px);
   padding: var(--sp-3);
   border: 1px solid var(--accent); border-radius: var(--radius);
   box-shadow: 0 0 0 3px var(--plastic-shade), 0 0 0 4px var(--plastic-dark), 0 12px 28px rgba(0, 0, 0, .45), 0 0 18px rgba(57, 255, 106, .18);
@@ -665,7 +672,7 @@ dialog.sheet.dropdown {
 dialog.sheet.dropdown::before { content: none; }
 dialog.sheet.dropdown[open] { animation: drop-down var(--dur) var(--ease-steps) both; }
 dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
-@keyframes drop-down { from { transform: translateY(-10px); opacity: 0; } }
+@keyframes drop-down { from { transform: translateY(10px); opacity: 0; } }
 .dropdown .menu-item { min-height: 48px; }
 .dropdown .menu + .sheet-title { margin-top: var(--sp-1); }
 .dropdown .sheet-title { text-align: left; padding-left: var(--sp-1); }
@@ -689,8 +696,8 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
 /* ---------- 19b. Full-screen views (games, canvases, maps, timers) ---------- */
 /* <section class="view fill" data-route="/x"> fills the whole screen and never scrolls.
    Live numbers go in a .hud on the status line; page actions go in small header
-   keys (.hdr-keys) shown only on that page. No keypad or tab bar under the screen. */
-.screen-body:has(> .view.fill.is-active) { padding: var(--sp-2); overflow: hidden; }
+   keys (.page-keys, in .app-controls) shown only on that page. No keypad under the screen. */
+.screen-body:has(> .view.fill.is-active) { padding: var(--sp-2) var(--sp-3) var(--sp-3); overflow: hidden; }  /* 12px keeps content clear of the round corners */
 .view.fill { flex: 1 1 auto; min-height: 0; gap: var(--sp-2); position: relative; }
 .hud {
   position: absolute; top: 0; right: 0; z-index: 2; height: 32px; max-width: 72%;
@@ -701,9 +708,9 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
 .hud i { font-style: normal; text-transform: uppercase; letter-spacing: var(--tracking-label); }
 .hud b { color: var(--text); font-size: var(--fs-sm); font-weight: 700; }
 .hud b.glow { color: var(--accent); text-shadow: var(--glow); }
-.hdr-keys { display: flex; gap: var(--sp-2); flex: none; }
-.hdr-keys .key-sm { font-size: var(--fs-md); }
-.hdr-keys .key-sm.word { font-size: var(--fs-xs); }
+.page-keys, .hdr-keys { display: flex; gap: var(--sp-2); flex: none; }
+.page-keys .key-sm, .hdr-keys .key-sm { font-size: var(--fs-md); }
+.page-keys .key-sm.word, .hdr-keys .key-sm.word { font-size: var(--fs-xs); }
 
 /* ---------- 20. Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
@@ -800,22 +807,8 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
 <body>
   <main class="app">
     <header class="app-header">
-      <button class="key key-sm" data-back hidden aria-label="Back">‹</button>
       <h1 class="app-title" data-view-title>Arcade</h1>
-      <span class="app-meta" data-hide-on="/snake /2048 /mines /blocks">v1.2</span>
-      <div class="hdr-keys" data-show-on="/snake /blocks" hidden>
-        <button class="key key-sm" data-act="pause" aria-label="Pause">II</button>
-        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
-      </div>
-      <div class="hdr-keys" data-show-on="/2048" hidden>
-        <button class="key key-sm word" data-act="undo">Undo</button>
-        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
-      </div>
-      <div class="hdr-keys" data-show-on="/mines" hidden>
-        <button class="key key-sm" data-act="flag" aria-pressed="false" aria-label="Flag mode">▲</button>
-        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
-      </div>
-      <button class="key key-sm" data-open-sheet="menu" aria-label="Menu">☰</button>
+      <span class="app-meta">v1.3</span>
     </header>
     <div class="screen">
       <canvas class="rain" aria-hidden="true" hidden></canvas>
@@ -912,7 +905,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
         <div class="menu-group">
           <span class="label">About</span>
           <div class="menu">
-            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.2</span></a>
+            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.3</span></a>
           </div>
         </div>
       </section>
@@ -963,7 +956,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
 
       <section class="view" data-route="/settings/about" data-title="About">
         <section class="panel" data-title="Phosphor Arcade">
-          <div class="kv"><span>Version</span><span>1.2</span></div>
+          <div class="kv"><span>Version</span><span>1.3</span></div>
           <div class="kv"><span>Games</span><span>4</span></div>
           <div class="kv"><span>Works offline</span><span class="t-accent">Yes</span></div>
           <div class="kv"><span>Storage</span><span>This phone</span></div>
@@ -971,8 +964,8 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
         <section class="panel" data-title="Controls">
           <ul class="list plain small">
             <li>Snake: swipe or arrow keys to steer.</li>
-            <li>2048: swipe or arrow keys; Undo in the header takes back one move.</li>
-            <li>Mines: tap to dig, hold a square (or turn on ▲ in the header) to flag. Tap a number to clear around it.</li>
+            <li>2048: swipe or arrow keys; Undo under the screen takes back one move.</li>
+            <li>Mines: tap to dig, hold a square (or turn on ▲ under the screen) to flag. Tap a number to clear around it.</li>
             <li>Blocks: drag to move, tap to rotate, flick down to drop.</li>
           </ul>
         </section>
@@ -981,6 +974,23 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
       </div><!-- /.screen-body -->
     </div><!-- /.screen -->
 
+    <nav class="app-controls" aria-label="Controls">
+      <button class="key key-sm" data-back hidden aria-label="Back">‹</button>
+      <span class="grow"></span>
+      <div class="page-keys" data-show-on="/snake /blocks" hidden>
+        <button class="key key-sm" data-act="pause" aria-label="Pause">II</button>
+        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
+      </div>
+      <div class="page-keys" data-show-on="/2048" hidden>
+        <button class="key key-sm word" data-act="undo">Undo</button>
+        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
+      </div>
+      <div class="page-keys" data-show-on="/mines" hidden>
+        <button class="key key-sm" data-act="flag" aria-pressed="false" aria-label="Flag mode">▲</button>
+        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
+      </div>
+      <button class="key key-sm" data-open-sheet="menu" aria-label="Menu">☰</button>
+    </nav>
   </main>
 
   <dialog class="sheet dropdown" id="menu" aria-label="Menu">
@@ -1003,7 +1013,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
   <div class="toast-host" aria-live="polite"></div>
   <script>
 /* ==========================================================================
-   PHOSPHOR v1.4 runtime: navigation, settings, sheets, toasts, confirm.
+   PHOSPHOR v1.5 runtime: navigation, settings, sheets, toasts, confirm.
    Spec: brand-guidelines.md section 7. Paste this whole file into a <script>
    at the end of <body>, after the markup. No dependencies, no network.
    Set a unique key per tool: <html data-app="tip-calc">
@@ -1274,7 +1284,7 @@ const PH = (() => {
 
   let active = null;   // the game on screen, if any
   const syncKeys = () => {
-    const b = $('.hdr-keys [data-act="pause"]');
+    const b = $('.page-keys [data-act="pause"]');
     if (b) { const p = !!(active && active.paused); b.textContent = p ? '▸' : 'II'; b.setAttribute('aria-label', p ? 'Resume' : 'Pause'); }
   };
 
@@ -1557,7 +1567,7 @@ const PH = (() => {
     }
     function setMode(m) {
       mode = m;
-      $('.hdr-keys [data-act="flag"]').setAttribute('aria-pressed', String(m === 'flag'));
+      $('.page-keys [data-act="flag"]').setAttribute('aria-pressed', String(m === 'flag'));
       if (m === 'flag') PH.toast('Flag mode: taps place flags.');
     }
     // taps, long-press flag, right-click flag
@@ -1791,7 +1801,7 @@ const PH = (() => {
     if (e.target.closest('[data-open-sheet="menu"]') && active && active.pause && active !== mines) active.pause();
     const a = e.target.closest('[data-action]');
     if (a && active) a.dataset.action === 'new' ? active.newGame() : active.act && active.act(a.dataset.action);
-    const k = e.target.closest('.hdr-keys [data-act]');
+    const k = e.target.closest('.page-keys [data-act]');
     if (k && active && active.act) { e.stopPropagation(); active.act(k.dataset.act); }
   }, true);
   addEventListener('keydown', e => {
@@ -1810,7 +1820,7 @@ const PH = (() => {
   $('#reset-display').onclick = () => { PH.store.set('crt', true); PH.store.set('rain', false); PH.toast('Display reset.'); };
   $('#export').onclick = () => {
     const settings = {}; Object.keys({ ...DEFAULTS, crt: 1, rain: 1 }).forEach(k => { settings[k] = PH.store.get(k); });
-    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.2', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
+    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.3', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
   };
   $('#reset-scores').onclick = async () => {
     if (!(await PH.confirm('Reset all best scores and times? This can\'t be undone.', { title: 'Reset scores', ok: 'Reset', danger: true }))) return;

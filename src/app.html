@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Phosphor Arcade</title>
-  <meta name="theme-color" content="#D9CDB4">
+  <meta name="theme-color" content="#D4C8AF">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -96,22 +96,8 @@
 <body>
   <main class="app">
     <header class="app-header">
-      <button class="key key-sm" data-back hidden aria-label="Back">‹</button>
       <h1 class="app-title" data-view-title>Arcade</h1>
-      <span class="app-meta" data-hide-on="/snake /2048 /mines /blocks">v1.2</span>
-      <div class="hdr-keys" data-show-on="/snake /blocks" hidden>
-        <button class="key key-sm" data-act="pause" aria-label="Pause">II</button>
-        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
-      </div>
-      <div class="hdr-keys" data-show-on="/2048" hidden>
-        <button class="key key-sm word" data-act="undo">Undo</button>
-        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
-      </div>
-      <div class="hdr-keys" data-show-on="/mines" hidden>
-        <button class="key key-sm" data-act="flag" aria-pressed="false" aria-label="Flag mode">▲</button>
-        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
-      </div>
-      <button class="key key-sm" data-open-sheet="menu" aria-label="Menu">☰</button>
+      <span class="app-meta">v1.3</span>
     </header>
     <div class="screen">
       <canvas class="rain" aria-hidden="true" hidden></canvas>
@@ -208,7 +194,7 @@
         <div class="menu-group">
           <span class="label">About</span>
           <div class="menu">
-            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.2</span></a>
+            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.3</span></a>
           </div>
         </div>
       </section>
@@ -259,7 +245,7 @@
 
       <section class="view" data-route="/settings/about" data-title="About">
         <section class="panel" data-title="Phosphor Arcade">
-          <div class="kv"><span>Version</span><span>1.2</span></div>
+          <div class="kv"><span>Version</span><span>1.3</span></div>
           <div class="kv"><span>Games</span><span>4</span></div>
           <div class="kv"><span>Works offline</span><span class="t-accent">Yes</span></div>
           <div class="kv"><span>Storage</span><span>This phone</span></div>
@@ -267,8 +253,8 @@
         <section class="panel" data-title="Controls">
           <ul class="list plain small">
             <li>Snake: swipe or arrow keys to steer.</li>
-            <li>2048: swipe or arrow keys; Undo in the header takes back one move.</li>
-            <li>Mines: tap to dig, hold a square (or turn on ▲ in the header) to flag. Tap a number to clear around it.</li>
+            <li>2048: swipe or arrow keys; Undo under the screen takes back one move.</li>
+            <li>Mines: tap to dig, hold a square (or turn on ▲ under the screen) to flag. Tap a number to clear around it.</li>
             <li>Blocks: drag to move, tap to rotate, flick down to drop.</li>
           </ul>
         </section>
@@ -277,6 +263,23 @@
       </div><!-- /.screen-body -->
     </div><!-- /.screen -->
 
+    <nav class="app-controls" aria-label="Controls">
+      <button class="key key-sm" data-back hidden aria-label="Back">‹</button>
+      <span class="grow"></span>
+      <div class="page-keys" data-show-on="/snake /blocks" hidden>
+        <button class="key key-sm" data-act="pause" aria-label="Pause">II</button>
+        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
+      </div>
+      <div class="page-keys" data-show-on="/2048" hidden>
+        <button class="key key-sm word" data-act="undo">Undo</button>
+        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
+      </div>
+      <div class="page-keys" data-show-on="/mines" hidden>
+        <button class="key key-sm" data-act="flag" aria-pressed="false" aria-label="Flag mode">▲</button>
+        <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
+      </div>
+      <button class="key key-sm" data-open-sheet="menu" aria-label="Menu">☰</button>
+    </nav>
   </main>
 
   <dialog class="sheet dropdown" id="menu" aria-label="Menu">
