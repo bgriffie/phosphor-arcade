@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Phosphor Arcade</title>
-  <meta name="theme-color" content="#2B261E">
+  <meta name="theme-color" content="#D9CDB4">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Arcade">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -802,7 +802,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
     <header class="app-header">
       <button class="key key-sm" data-back hidden aria-label="Back">‹</button>
       <h1 class="app-title" data-view-title>Arcade</h1>
-      <span class="app-meta" data-hide-on="/snake /2048 /mines /blocks">v1.1</span>
+      <span class="app-meta" data-hide-on="/snake /2048 /mines /blocks">v1.2</span>
       <div class="hdr-keys" data-show-on="/snake /blocks" hidden>
         <button class="key key-sm" data-act="pause" aria-label="Pause">II</button>
         <button class="key key-sm" data-act="new" aria-label="New game">⟳</button>
@@ -912,7 +912,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
         <div class="menu-group">
           <span class="label">About</span>
           <div class="menu">
-            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.1</span></a>
+            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.2</span></a>
           </div>
         </div>
       </section>
@@ -963,7 +963,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
 
       <section class="view" data-route="/settings/about" data-title="About">
         <section class="panel" data-title="Phosphor Arcade">
-          <div class="kv"><span>Version</span><span>1.1</span></div>
+          <div class="kv"><span>Version</span><span>1.2</span></div>
           <div class="kv"><span>Games</span><span>4</span></div>
           <div class="kv"><span>Works offline</span><span class="t-accent">Yes</span></div>
           <div class="kv"><span>Storage</span><span>This phone</span></div>
@@ -1810,7 +1810,7 @@ const PH = (() => {
   $('#reset-display').onclick = () => { PH.store.set('crt', true); PH.store.set('rain', false); PH.toast('Display reset.'); };
   $('#export').onclick = () => {
     const settings = {}; Object.keys({ ...DEFAULTS, crt: 1, rain: 1 }).forEach(k => { settings[k] = PH.store.get(k); });
-    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.1', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
+    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.2', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
   };
   $('#reset-scores').onclick = async () => {
     if (!(await PH.confirm('Reset all best scores and times? This can\'t be undone.', { title: 'Reset scores', ok: 'Reset', danger: true }))) return;
