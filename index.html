@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Phosphor Arcade</title>
-  <meta name="theme-color" content="#9C8E70">
+  <meta name="theme-color" content="#BFB193">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <style>
 /* ==========================================================================
-   PHOSPHOR v1.6 — base stylesheet for Floyd's home-screen tools
+   PHOSPHOR v1.7 — base stylesheet for Floyd's home-screen tools
    Spec: brand-guidelines.md (same folder). Paste this whole file into a
    <style> block in index.html. No external fonts, images or network calls.
    ========================================================================== */
@@ -52,9 +52,9 @@
   --plastic-shade: #BFB193;  /* recesses, bezel slope */
   --plastic-dark:  #9C8E70;  /* keycap sides, seams */
   --trim:          #2B261E;  /* dark brown trim band, status-bar strip */
-  --plastic-band:  #9C8E70;  /* darker moulded top band that runs up behind the iOS clock (v1.6) */
+  --plastic-band:  #BFB193;  /* slightly darker moulded top band behind the iOS clock (v1.7: lighter than v1.6) */
   /* iOS status bar: style "black-translucent" so the app draws under the clock; the
-     white clock sits on --plastic-band. theme-color #9C8E70. */
+     white clock sits on --plastic-band. theme-color #BFB193. */
   --ink:           #2B261E;  /* text on plastic, 9.5:1 */
   --ink-dim:       #5E5442;  /* labels on plastic, 4.7:1 */
   --ink-red:       #8A3A1A;  /* destructive label on plastic, 4.9:1 */
@@ -114,7 +114,7 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; overscroll-b
 html { background: var(--plastic); }
 body {
   background: var(--plastic-noise), var(--plastic);
-  height: 100dvh;
+  height: var(--app-h, 100dvh);
   color: var(--text);
   font-family: var(--font-mono);
   font-size: var(--fs-md);
@@ -188,7 +188,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Pinned to the real screen edges: on iOS home-screen apps 100%/100dvh can come
    up short and leave a strip of empty plastic at the bottom (v1.4 fix). */
 .app {
-  position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+  position: fixed; top: 0; right: 0; left: 0;
+  /* --app-h is set by phosphor.js to the real screen height in home-screen apps: with a
+     black-translucent status bar iOS reports a viewport one status bar too short and
+     leaves an empty strip at the bottom (v1.7 fix). */
+  height: var(--app-h, 100%);
   max-width: var(--maxw);
   margin: 0 auto;
   padding: 0 calc(2px + var(--safe-right)) calc(var(--sp-1) + var(--safe-bottom)) calc(2px + var(--safe-left));
@@ -243,12 +247,12 @@ a { color: var(--cyan); text-underline-offset: 3px; }
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
   margin: 0 calc(-2px - var(--safe-right)) 0 calc(-2px - var(--safe-left));
   padding: var(--safe-top) calc(var(--sp-4) + var(--safe-right)) 0 calc(var(--sp-4) + var(--safe-left));
-  min-height: calc(var(--safe-top) + 34px);
+  min-height: calc(var(--safe-top) + 30px);
   background: var(--plastic-noise), var(--plastic-band);
   box-shadow: inset 0 -1px 0 rgba(43, 38, 30, .35), 0 1px 0 var(--plastic-light);
 }
-.app-header .app-title { color: var(--plastic-light); text-shadow: 0 -1px 0 rgba(43, 38, 30, .5); font-size: 18px; }
-.app-header .app-meta { color: var(--plastic-light); opacity: .8; text-shadow: 0 -1px 0 rgba(43, 38, 30, .4); }
+.app-header .app-title { color: var(--ink); text-shadow: 0 1px 0 rgba(255, 255, 255, .45); font-size: 18px; }
+.app-header .app-meta { color: var(--ink-dim); }
 /* Three keys, centered under the screen, in thumb reach (v1.6):
    <nav class="app-controls"> ‹ back · ☰ menu · page action (or ■ home) </nav> */
 .app-controls { display: flex; align-items: center; justify-content: center; gap: var(--sp-5); min-height: 46px; padding-top: 2px; }
@@ -499,7 +503,7 @@ a { color: var(--cyan); text-underline-offset: 3px; }
 /* ---------- 15. Toast ---------- */
 .toast-host {
   position: fixed; left: 0; right: 0; z-index: 100;
-  bottom: calc(var(--sp-5) + var(--safe-bottom));
+  bottom: calc(var(--sp-5) + var(--safe-bottom) + 50px - var(--app-gap, 0px));   /* above the controls row */
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
   pointer-events: none; padding: 0 var(--sp-4);
 }
@@ -651,7 +655,7 @@ a.menu-item::after, .menu-item[data-nav]::after, .menu-item[data-open-sheet]::af
 /* <dialog class="sheet" id="menu"><div class="sheet-title">Menu</div><div class="menu">…</div>
      <button class="btn btn-ghost btn-block" data-close>Cancel</button></dialog> */
 dialog.sheet {
-  position: fixed; inset: auto 0 0 0; margin: 0 auto;
+  position: fixed; inset: auto 0 calc(0px - var(--app-gap, 0px)) 0; margin: 0 auto;
   width: 100%; max-width: var(--maxw); max-height: 80dvh; overflow: auto;
   padding: var(--sp-3) var(--sp-4) calc(var(--sp-4) + var(--safe-bottom));
   background: var(--bg); color: var(--text);
@@ -670,7 +674,7 @@ dialog.sheet::before {  /* grab handle */
 /* The app menu, opened by the ☰ key in the bottom controls; it pops up above it:
    <dialog class="sheet dropdown" id="menu">…</dialog> */
 dialog.sheet.dropdown {
-  inset: auto calc(var(--sp-2) + var(--safe-right)) calc(var(--safe-bottom) + 60px) auto;
+  inset: auto calc(var(--sp-2) + var(--safe-right)) calc(var(--safe-bottom) + 60px - var(--app-gap, 0px)) auto;
   width: min(calc(100vw - 16px), 340px); max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 80px);
   padding: var(--sp-3);
   border: 1px solid var(--accent); border-radius: var(--radius);
@@ -815,7 +819,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
   <main class="app">
     <header class="app-header">
       <h1 class="app-title" data-view-title>Arcade</h1>
-      <span class="app-meta">v1.4</span>
+      <span class="app-meta">v1.5</span>
     </header>
     <div class="screen">
       <canvas class="rain" aria-hidden="true" hidden></canvas>
@@ -912,7 +916,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
         <div class="menu-group">
           <span class="label">About</span>
           <div class="menu">
-            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.4</span></a>
+            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.5</span></a>
           </div>
         </div>
       </section>
@@ -963,7 +967,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
 
       <section class="view" data-route="/settings/about" data-title="About">
         <section class="panel" data-title="Phosphor Arcade">
-          <div class="kv"><span>Version</span><span>1.4</span></div>
+          <div class="kv"><span>Version</span><span>1.5</span></div>
           <div class="kv"><span>Games</span><span>4</span></div>
           <div class="kv"><span>Works offline</span><span class="t-accent">Yes</span></div>
           <div class="kv"><span>Storage</span><span>This phone</span></div>
@@ -1012,7 +1016,7 @@ dialog.sheet.dropdown::backdrop { background: rgba(20, 17, 12, .35); }
   <div class="toast-host" aria-live="polite"></div>
   <script>
 /* ==========================================================================
-   PHOSPHOR v1.6 runtime: navigation, settings, sheets, toasts, confirm.
+   PHOSPHOR v1.7 runtime: navigation, settings, sheets, toasts, confirm.
    Spec: brand-guidelines.md section 7. Paste this whole file into a <script>
    at the end of <body>, after the markup. No dependencies, no network.
    Set a unique key per tool: <html data-app="tip-calc">
@@ -1145,6 +1149,20 @@ const PH = (() => {
     if (n) { e.preventDefault(); go(n.dataset.route); return; }
     if (e.target.closest('a[href^="#/"]')) pushedByUs++;
   });
+
+  /* Home-screen apps fill the whole physical screen. iOS under-reports the viewport by the
+     status bar height there, so size the case from the screen itself. */
+  function fitApp() {
+    const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+    const st = document.documentElement.style;
+    if (!standalone) { st.removeProperty('--app-h'); st.removeProperty('--app-gap'); return; }
+    const land = matchMedia('(orientation: landscape)').matches;
+    const h = land ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+    const full = Math.max(h, innerHeight);
+    st.setProperty('--app-h', full + 'px');
+    st.setProperty('--app-gap', (full - innerHeight) + 'px');   // how far the real bottom is below the reported one
+  }
+  fitApp(); addEventListener('resize', fitApp); addEventListener('orientationchange', () => setTimeout(fitApp, 300));
 
   /* Keycap press animation: every tap visibly sinks the key, even a quick one */
   document.addEventListener('pointerdown', e => {
@@ -1829,7 +1847,7 @@ const PH = (() => {
   $('#reset-display').onclick = () => { PH.store.set('crt', true); PH.store.set('rain', false); PH.toast('Display reset.'); };
   $('#export').onclick = () => {
     const settings = {}; Object.keys({ ...DEFAULTS, crt: 1, rain: 1 }).forEach(k => { settings[k] = PH.store.get(k); });
-    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.4', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
+    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.5', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
   };
   $('#reset-scores').onclick = async () => {
     if (!(await PH.confirm('Reset all best scores and times? This can\'t be undone.', { title: 'Reset scores', ok: 'Reset', danger: true }))) return;
