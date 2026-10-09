@@ -97,7 +97,7 @@
   <main class="app">
     <header class="app-header">
       <h1 class="app-title" data-view-title>Arcade</h1>
-      <span class="app-meta">v1.7</span>
+      <span class="app-meta">v1.8</span>
     </header>
     <div class="screen">
       <canvas class="rain" aria-hidden="true" hidden></canvas>
@@ -106,6 +106,7 @@
       <div class="hud" data-show-on="/2048" hidden><i>Score</i> <b class="glow" id="g2048-score">0</b> <i>Best</i> <b id="g2048-best">0</b></div>
       <div class="hud" data-show-on="/mines" hidden><i>▲</i> <b class="glow" id="mines-left">0</b> <b id="mines-time">0:00</b> <i>Best</i> <b id="mines-best">—</b></div>
       <div class="hud" data-show-on="/blocks" hidden><i>Score</i> <b class="glow" id="blocks-score">0</b> <i>Lv</i> <b id="blocks-level">1</b> <canvas id="blocks-next" aria-label="Next piece"></canvas></div>
+      <div class="hud" data-show-on="/pins" hidden><i>Lv</i> <b class="glow" id="pins-level">1/5</b> <i>Gold</i> <b id="pins-gold">0/0</b></div>
       <div class="screen-body">
 
       <!-- ============ HOME ============ -->
@@ -121,6 +122,7 @@
             <a class="menu-item" href="#/2048"><span class="mi-glyph" aria-hidden="true">#</span><span class="mi-label">2048<small>Slide and merge to 2048</small></span><span class="mi-value" id="home-2048">—</span></a>
             <a class="menu-item" href="#/mines"><span class="mi-glyph" aria-hidden="true">*</span><span class="mi-label">Mines<small>Clear the field without a boom</small></span><span class="mi-value" id="home-mines">—</span></a>
             <a class="menu-item" href="#/blocks"><span class="mi-glyph" aria-hidden="true">▓</span><span class="mi-label">Blocks<small>Stack pieces, clear lines</small></span><span class="mi-value" id="home-blocks">—</span></a>
+            <a class="menu-item" href="#/pins"><span class="mi-glyph" aria-hidden="true">¤</span><span class="mi-label">Pin Rescue<small>Pull pins, save the hero. No ads.</small></span><span class="mi-value" id="home-pins">—</span></a>
           </div>
           <p class="menu-note">Best scores stay on this phone. Everything works offline.</p>
         </div>
@@ -165,6 +167,16 @@
         </div>
       </section>
 
+      <!-- ============ PIN RESCUE ============ -->
+      <section class="view fill" data-route="/pins" data-title="Pin Rescue">
+        <div class="board-wrap" id="pins-wrap">
+              <div class="overlay" id="pins-ov"></div>
+          <div class="board-box" id="pins-box">
+            <canvas id="pins-cv" aria-label="Pin Rescue board"></canvas>
+          </div>
+        </div>
+      </section>
+
       <!-- ============ SETTINGS ============ -->
       <section class="view" data-route="/settings" data-title="Settings">
         <div class="menu-group">
@@ -189,12 +201,12 @@
             <button class="menu-item" id="export"><span class="mi-glyph" aria-hidden="true">↑</span><span class="mi-label">Export data</span></button>
             <button class="menu-item danger" id="erase"><span class="mi-glyph" aria-hidden="true">✕</span><span class="mi-label">Erase all data</span></button>
           </div>
-          <p class="menu-note">Scores and your 2048 game stay on this phone. Export makes a backup file you can save to Files.</p>
+          <p class="menu-note">Scores, your Pin Rescue level and your 2048 game stay on this phone. Export makes a backup file you can save to Files.</p>
         </div>
         <div class="menu-group">
           <span class="label">About</span>
           <div class="menu">
-            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.7</span></a>
+            <a class="menu-item" href="#/settings/about"><span class="mi-glyph" aria-hidden="true">i</span><span class="mi-label">About</span><span class="mi-value">v1.8</span></a>
           </div>
         </div>
       </section>
@@ -233,6 +245,7 @@
           <div class="kv"><span>Snake</span><span id="sc-snake">—</span></div>
           <div class="kv"><span>2048</span><span id="sc-2048">—</span></div>
           <div class="kv"><span>Blocks</span><span id="sc-blocks">—</span></div>
+          <div class="kv"><span>Pin Rescue</span><span id="sc-pins">—</span></div>
           <hr class="divider">
           <div class="kv"><span>Mines easy</span><span id="sc-mines-easy">—</span></div>
           <div class="kv"><span>Mines normal</span><span id="sc-mines-normal">—</span></div>
@@ -245,8 +258,8 @@
 
       <section class="view" data-route="/settings/about" data-title="About">
         <section class="panel" data-title="Phosphor Arcade">
-          <div class="kv"><span>Version</span><span>1.7</span></div>
-          <div class="kv"><span>Games</span><span>4</span></div>
+          <div class="kv"><span>Version</span><span>1.8</span></div>
+          <div class="kv"><span>Games</span><span>5</span></div>
           <div class="kv"><span>Works offline</span><span class="t-accent">Yes</span></div>
           <div class="kv"><span>Storage</span><span>This phone</span></div>
         </section>
@@ -256,6 +269,7 @@
             <li>2048: swipe or arrow keys; Undo under the screen takes back one move.</li>
             <li>Mines: tap to dig, hold a square (or turn on ▲ under the screen) to flag. Tap a number to clear around it.</li>
             <li>Blocks: drag to move, tap to rotate, flick down to drop.</li>
+            <li>Pin Rescue: tap a pin to pull it; ⟳ under the screen restarts the level.</li>
           </ul>
         </section>
       </section>
@@ -266,11 +280,12 @@
     <nav class="app-controls" aria-label="Controls">
       <button class="key key-sm" data-back aria-label="Back">‹</button>
       <button class="key key-sm" data-open-sheet="menu" aria-label="Menu">☰</button>
-      <button class="key key-sm" data-route="/" data-hide-on="/ /snake /2048 /mines /blocks" aria-label="Arcade home">■</button>
+      <button class="key key-sm" data-route="/" data-hide-on="/ /snake /2048 /mines /blocks /pins" aria-label="Arcade home">■</button>
       <button class="key key-sm" data-route="/settings" data-show-on="/" hidden aria-label="Settings">⚙</button>
       <div class="page-keys" data-show-on="/snake /blocks" hidden><button class="key key-sm" data-act="pause" aria-label="Pause">II</button></div>
       <div class="page-keys" data-show-on="/2048" hidden><button class="key key-sm word" data-act="undo">Undo</button></div>
       <div class="page-keys" data-show-on="/mines" hidden><button class="key key-sm" data-act="flag" aria-pressed="false" aria-label="Flag mode">▲</button></div>
+      <div class="page-keys" data-show-on="/pins" hidden><button class="key key-sm" data-act="retry" aria-label="Restart level">⟳</button></div>
     </nav>
   </main>
 
@@ -282,6 +297,7 @@
       <button class="menu-item" data-route="/2048"><span class="mi-glyph" aria-hidden="true">#</span><span class="mi-label">2048</span></button>
       <button class="menu-item" data-route="/mines"><span class="mi-glyph" aria-hidden="true">*</span><span class="mi-label">Mines</span></button>
       <button class="menu-item" data-route="/blocks"><span class="mi-glyph" aria-hidden="true">▓</span><span class="mi-label">Blocks</span></button>
+      <button class="menu-item" data-route="/pins"><span class="mi-glyph" aria-hidden="true">¤</span><span class="mi-label">Pin Rescue</span></button>
       <button class="menu-item" data-route="/settings"><span class="mi-glyph" aria-hidden="true">⚙</span><span class="mi-label">Settings</span></button>
     </div>
     <div class="sheet-title" id="actions-title" hidden>Actions</div>

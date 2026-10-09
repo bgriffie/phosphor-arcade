@@ -1,7 +1,7 @@
 /* Phosphor Arcade service worker: caches the app shell so it runs offline.
    Bump CACHE whenever any file changes so installed apps pick up the update. */
 const PREFIX = 'phosphor-arcade-';   // every tool shares bgriffie.github.io, so only touch our own caches
-const CACHE = PREFIX + 'v9';
+const CACHE = PREFIX + 'v10';
 const ASSETS = ['./', './index.html', './manifest.json', './apple-touch-icon.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

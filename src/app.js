@@ -1,4 +1,4 @@
-/* Phosphor Arcade: Snake, 2048, Mines, Blocks. */
+/* Phosphor Arcade: Snake, 2048, Mines, Blocks, Pin Rescue. */
 (() => {
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -7,14 +7,14 @@
 
   /* ---------- Tool data: best scores + saved 2048 game ---------- */
   const DKEY = 'phosphor-arcade:data';
-  const blankBest = () => ({ snake: 0, g2048: 0, blocks: 0, mines: { easy: null, normal: null, hard: null } });
-  const blank = () => ({ best: blankBest(), g2048: null });
+  const blankBest = () => ({ snake: 0, g2048: 0, blocks: 0, pins: 0, mines: { easy: null, normal: null, hard: null } });
+  const blank = () => ({ best: blankBest(), g2048: null, pins: 0 });
   let data = (() => {
     try {
       const d = JSON.parse(localStorage.getItem(DKEY));
       if (d && d.best) {
         const b = blankBest();
-        return { g2048: d.g2048 || null, best: { ...b, ...d.best, mines: { ...b.mines, ...(d.best.mines || {}) } } };
+        return { g2048: d.g2048 || null, pins: d.pins || 0, best: { ...b, ...d.best, mines: { ...b.mines, ...(d.best.mines || {}) } } };
       }
     } catch {}
     return blank();
@@ -551,9 +551,261 @@
   })();
 
   /* ======================================================================
+     PIN RESCUE (the pull-the-pin puzzle from the ads, with no ads)
+     ====================================================================== */
+  const pins = (() => {
+    const wrap = $('#pins-wrap'), view = wrap.closest('.view'), cv = $('#pins-cv'), ov = $('#pins-ov');
+    const W = 18, H = 28, STEP = 40;
+    const E = 0, WALL = 1, PIN = 2, GOLD = 3, WATER = 4, LAVA = 5, STONE = 6, HERO = 7, MON = 8;
+    const N4 = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+
+    // ops: [type, x0, y0, x1, y1] filled inclusive; 'p' adds a pin. hero/monsters are 2x3, given by top-left.
+    const monster = {
+      name: 'Monster',
+      ops: [
+        ['#', 6, 0, 6, 17], ['#', 7, 17, 10, 17],
+        ['g', 0, 0, 5, 3], ['p', 0, 4, 5, 4],
+        ['w', 0, 5, 5, 8], ['p', 0, 9, 5, 9],
+        ['l', 0, 10, 5, 12], ['p', 0, 13, 5, 13],
+        ['#', 11, 12, 11, 21], ['p', 11, 22, 11, 25], ['#', 11, 26, 11, 27],
+      ],
+      hero: [15, 25], mons: [[4, 25]], sol: [2, 1, 0, 3],
+    };
+    const mirror = L => ({
+      ops: L.ops.map(([c, x0, y0, x1, y1]) => [c, W - 1 - x1, y0, W - 1 - x0, y1]),
+      hero: [W - 2 - L.hero[0], L.hero[1]], mons: L.mons.map(([x, y]) => [W - 2 - x, y]),
+    });
+    const LEVELS = [
+      { name: 'Gold rush', ops: [['#', 0, 0, 1, 5], ['#', 16, 0, 17, 5], ['g', 2, 1, 15, 4], ['p', 2, 5, 15, 5]], hero: [8, 25], mons: [], sol: [0] },
+      { name: 'Pick one', ops: [['#', 8, 0, 9, 9], ['l', 0, 3, 7, 8], ['p', 0, 9, 7, 9], ['g', 10, 3, 17, 8], ['p', 10, 9, 17, 9]], hero: [8, 25], mons: [], sol: [1] },
+      { name: 'Cool it', ops: [
+        ['g', 0, 2, 5, 7], ['#', 6, 0, 6, 8], ['p', 0, 8, 5, 8],
+        ['w', 7, 2, 12, 7], ['#', 13, 0, 13, 8], ['p', 7, 8, 12, 8],
+        ['l', 0, 21, 12, 27], ['#', 13, 21, 13, 27],
+      ], hero: [15, 25], mons: [], sol: [1, 0] },
+      monster,
+      { name: 'Too many pins', ...(() => { const m = mirror(monster);
+        m.ops.push(['#', 0, 3, 5, 3], ['#', 5, 4, 5, 8], ['l', 0, 4, 4, 7], ['p', 0, 8, 4, 8]); return m; })(), sol: [2, 1, 0, 3] },
+    ];
+
+    let ctx, cell = 20, g, pid, dir, stamp, pinList = [], hero, mons = [], li = Math.min(data.pins || 0, LEVELS.length - 1);
+    let total = 0, need = 0, got = 0, tick = 0, ending = null, lastGot = 0, stampGot = 0, stampGotVal = 0, state = 'ready', raf = 0, last = 0, acc = 0;
+
+    const at = (x, y) => x < 0 || y < 0 || x >= W || y >= H ? WALL : g[y * W + x];
+    function mark(e, t) { for (let y = e.y; y < e.y + e.h; y++) for (let x = e.x; x < e.x + e.w; x++) g[y * W + x] = t; }
+    function unmark(e, t) { for (let y = e.y; y < e.y + e.h; y++) for (let x = e.x; x < e.x + e.w; x++) if (g[y * W + x] === t) g[y * W + x] = E; }
+    const free = (x, y, w, h) => { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (at(i, j) !== E) return false; return true; };
+
+    function load(i) {
+      li = i; const L = LEVELS[i];
+      g = new Uint8Array(W * H); pid = new Int16Array(W * H).fill(-1); dir = new Int8Array(W * H); stamp = new Uint32Array(W * H); pinList = [];
+      const T = { '#': WALL, g: GOLD, w: WATER, l: LAVA, p: PIN };
+      L.ops.forEach(([c, x0, y0, x1, y1]) => {
+        const id = c === 'p' ? pinList.push({ x0, y0, x1, y1, out: 0 }) - 1 : -1;
+        for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const k = y * W + x; g[k] = T[c]; pid[k] = id; dir[k] = Math.random() < .5 ? -1 : 1; }
+      });
+      hero = { x: L.hero[0], y: L.hero[1], w: 2, h: 3, mood: 0 };
+      mons = L.mons.map(([x, y]) => ({ x, y, w: 2, h: 3, alive: true, gone: 0 }));
+      mark(hero, HERO); mons.forEach(m => mark(m, MON));
+      total = g.reduce((n, t) => n + (t === GOLD), 0); need = Math.ceil(total * .6);
+      got = lastGot = tick = stampGot = stampGotVal = 0; ending = null;
+      stats(); draw();
+    }
+    function stats() { $('#pins-level').textContent = (li + 1) + '/' + LEVELS.length; $('#pins-gold').textContent = got + '/' + need; }
+
+    function move(a, b) { g[b] = g[a]; dir[b] = dir[a]; g[a] = E; stamp[b] = tick; }
+    function swap(a, b) { const t = g[b], d = dir[b]; g[b] = g[a]; dir[b] = dir[a]; g[a] = t; dir[a] = d; stamp[a] = stamp[b] = tick; }
+    function fall(e, t) {
+      if (!free(e.x, e.y + e.h, e.w, 1)) return;
+      unmark(e, t); e.y++; mark(e, t);
+    }
+    function walk(m) {
+      if (free(m.x, m.y + m.h, m.w, 1)) return;
+      const d = Math.sign(hero.x - m.x); if (!d) return;
+      unmark(m, MON);
+      for (const up of [0, 1, 2]) if (free(m.x + d, m.y - up, m.w, m.h)) { m.x += d; m.y -= up; break; }
+      mark(m, MON);
+    }
+    function kill(m) { if (!m || !m.alive) return; unmark(m, MON); m.alive = false; m.gone = tick; }
+    const monAt = (x, y) => mons.find(m => m.alive && x >= m.x && x < m.x + m.w && y >= m.y && y < m.y + m.h);
+    function end(won, reason) { if (ending) return; ending = { won, reason, t: tick }; hero.mood = won ? 1 : -1; }
+
+    function step() {
+      tick++;
+      // particles: gold sinks through water, liquids spread, lava moves at half speed
+      for (let y = H - 1; y >= 0; y--) {
+        const ltr = (tick + y) & 1;
+        for (let i = 0; i < W; i++) {
+          const x = ltr ? i : W - 1 - i, k = y * W + x, t = g[k];
+          if (t < GOLD || t > LAVA || stamp[k] === tick || (t === LAVA && tick & 1)) continue;
+          const open = (xx, yy) => { const c = at(xx, yy); return c === E || (t === GOLD && c === WATER); };
+          const go = (xx, yy) => { const j = yy * W + xx; g[j] === E ? move(k, j) : swap(k, j); };
+          const d = dir[k];
+          if (open(x, y + 1)) go(x, y + 1);
+          else if (open(x + d, y) && open(x + d, y + 1)) go(x + d, y + 1);
+          else if (open(x - d, y) && open(x - d, y + 1)) { dir[k] = -d; go(x - d, y + 1); }
+          else if (open(x + d, y)) go(x + d, y);
+          else { dir[k] = -d; if (open(x - d, y)) go(x - d, y); }
+        }
+      }
+      // reactions
+      for (let k = 0; k < W * H; k++) {
+        const t = g[k]; if (t !== WATER && t !== LAVA && t !== GOLD) continue;
+        const x = k % W, y = (k / W) | 0;
+        for (const [dx, dy] of N4) {
+          const u = at(x + dx, y + dy), j = (y + dy) * W + x + dx;
+          if (t === WATER && u === LAVA) { g[j] = STONE; g[k] = E; break; }
+          if (t === LAVA && u === GOLD) g[j] = E;
+          else if (t === LAVA && u === HERO) end(false, 'The lava got the hero.');
+          else if (t === LAVA && u === MON) kill(monAt(x + dx, y + dy));
+          else if (t === GOLD && u === HERO) { g[k] = E; got++; break; }
+        }
+      }
+      if (tick % 2 === 0) { fall(hero, HERO); mons.forEach(m => m.alive && fall(m, MON)); }
+      if (tick % 5 === 0) mons.forEach(m => m.alive && walk(m));
+      mons.forEach(m => {
+        if (m.alive && m.x <= hero.x + hero.w && hero.x <= m.x + m.w && m.y <= hero.y + hero.h && hero.y <= m.y + m.h) end(false, 'The monster got the hero.');
+      });
+      if (got !== lastGot) { lastGot = got; stats(); }
+      if (got >= need) end(true);
+      else if (g.reduce((n, t) => n + (t === GOLD), 0) + got < need) end(false, 'Not enough gold made it.');
+      if (!ending && pinList.every(p => p.out) && tick - Math.max(pinList.reduce((a, p) => Math.max(a, p.tick), 0), stampGot) > 125) end(false, 'The gold is stuck.');
+      if (got !== stampGotVal) { stampGotVal = got; stampGot = tick; }
+      if (ending && tick - ending.t > 25) finish();
+    }
+    function pull(p) {
+      p.out = performance.now(); p.tick = tick;
+      const id = pinList.indexOf(p);
+      for (let k = 0; k < W * H; k++) if (pid[k] === id && g[k] === PIN) g[k] = E;
+    }
+
+    /* drawing */
+    function draw() {
+      if (!ctx || !g) return;
+      const s = cell, now = performance.now();
+      ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W * s, H * s);
+      ctx.fillStyle = C.line;
+      for (let y = 1; y < H; y++) for (let x = 1; x < W; x++) ctx.fillRect(x * s - 1, y * s - 1, 2, 2);
+      for (let k = 0; k < W * H; k++) {
+        const t = g[k], x = (k % W) * s, y = ((k / W) | 0) * s;
+        if (t === WALL) { ctx.fillStyle = C.line; ctx.fillRect(x, y, s, s); }
+        else if (t === STONE) { ctx.fillStyle = C.dim; ctx.globalAlpha = .4; ctx.fillRect(x, y, s, s); ctx.globalAlpha = 1; ctx.fillStyle = C.bg; ctx.fillRect(x + s * .2, y + s * .25, s * .2, s * .15); }
+        else if (t === WATER) { ctx.fillStyle = C.cyan; ctx.globalAlpha = .6; ctx.fillRect(x, y, s, s); ctx.globalAlpha = 1; }
+        else if (t === LAVA) { ctx.fillStyle = C.red; ctx.fillRect(x, y, s, s); if (Math.random() < .08) { ctx.fillStyle = C.amber; ctx.fillRect(x + s * .3, y + s * .3, s * .3, s * .3); } }
+        else if (t === GOLD) { ctx.fillStyle = C.amber; ctx.fillRect(x + 1, y + 1, s - 2, s - 2); ctx.fillStyle = 'rgba(3,7,3,.3)'; ctx.fillRect(x + s * .55, y + s * .55, s * .25, s * .25); }
+      }
+      // pins: a bar with a ring handle; pulled pins slide out and fade
+      pinList.forEach(p => {
+        const k = p.out ? Math.min(1, (now - p.out) / 300) : 0; if (k >= 1) return;
+        const horiz = p.x1 > p.x0 || p.y1 === p.y0, len = horiz ? (p.x1 - p.x0 + 1) * s : (p.y1 - p.y0 + 1) * s, off = k * len;
+        ctx.globalAlpha = 1 - k; ctx.fillStyle = C.text; ctx.strokeStyle = C.text; ctx.lineWidth = Math.max(2, s * .14);
+        ctx.shadowColor = C.accent; ctx.shadowBlur = 6;
+        if (horiz) {
+          const y = (p.y0 + .5) * s, x0 = p.x0 * s + off, x1 = (p.x1 + 1) * s + off;
+          ctx.fillRect(x0, y - s * .18, x1 - x0 - s * .7, s * .36);
+          ctx.beginPath(); ctx.arc(x1 - s * .4, y, s * .32, 0, 7); ctx.stroke();
+        } else {
+          const x = (p.x0 + .5) * s, y0 = p.y0 * s - off, y1 = (p.y1 + 1) * s - off;
+          ctx.fillRect(x - s * .18, y0 + s * .7, s * .36, y1 - y0 - s * .7);
+          ctx.beginPath(); ctx.arc(x, y0 + s * .4, s * .32, 0, 7); ctx.stroke();
+        }
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      });
+      mons.forEach(m => {
+        const x = m.x * s, y = m.y * s;
+        if (!m.alive) {   // a puff of smoke for a moment
+          const k = (tick - m.gone) / 20; if (k > 1) return;
+          ctx.globalAlpha = 1 - k; ctx.fillStyle = C.dim;
+          for (let i = 0; i < 5; i++) ctx.fillRect(x + s * (.2 + (i % 3) * .6), y + s * (2 - k * 1.5 - (i % 2) * .6), s * .5, s * .5);
+          ctx.globalAlpha = 1; return;
+        }
+        ctx.fillStyle = 'rgba(255,92,92,.22)'; ctx.strokeStyle = C.red; ctx.lineWidth = 2;
+        ctx.fillRect(x + s * .15, y + s * .7, s * 1.7, s * 2.3); ctx.strokeRect(x + s * .15, y + s * .7, s * 1.7, s * 2.3);
+        ctx.fillStyle = C.red;
+        ctx.beginPath(); ctx.moveTo(x + s * .2, y + s * .7); ctx.lineTo(x + s * .35, y); ctx.lineTo(x + s * .7, y + s * .7);
+        ctx.moveTo(x + s * 1.3, y + s * .7); ctx.lineTo(x + s * 1.65, y); ctx.lineTo(x + s * 1.8, y + s * .7); ctx.fill();
+        ctx.fillStyle = C.amber; ctx.fillRect(x + s * .5, y + s * 1.2, s * .3, s * .3); ctx.fillRect(x + s * 1.2, y + s * 1.2, s * .3, s * .3);
+        ctx.fillStyle = C.text; for (let i = 0; i < 4; i++) ctx.fillRect(x + s * (.45 + i * .3), y + s * 2.1, s * .15, s * .25);
+      });
+      if (hero) {
+        const x = hero.x * s, y = hero.y * s, col = hero.mood < 0 ? C.red : C.text;
+        ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, s * .15);
+        ctx.shadowColor = hero.mood < 0 ? C.red : C.accent; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.arc(x + s, y + s * .55, s * .45, 0, 7); ctx.fill();
+        ctx.fillRect(x + s * .55, y + s * 1.1, s * .9, s * 1.1);
+        ctx.fillRect(x + s * .55, y + s * 2.2, s * .3, s * .8); ctx.fillRect(x + s * 1.15, y + s * 2.2, s * .3, s * .8);
+        ctx.beginPath();
+        if (hero.mood > 0) { ctx.moveTo(x + s * .6, y + s * 1.3); ctx.lineTo(x + s * .15, y + s * .4); ctx.moveTo(x + s * 1.4, y + s * 1.3); ctx.lineTo(x + s * 1.85, y + s * .4); }
+        else { ctx.moveTo(x + s * .6, y + s * 1.3); ctx.lineTo(x + s * .2, y + s * 2.1); ctx.moveTo(x + s * 1.4, y + s * 1.3); ctx.lineTo(x + s * 1.8, y + s * 2.1); }
+        ctx.stroke(); ctx.shadowBlur = 0;
+        ctx.fillStyle = C.bg; ctx.fillRect(x + s * .75, y + s * .45, s * .14, s * .14); ctx.fillRect(x + s * 1.11, y + s * .45, s * .14, s * .14);
+      }
+    }
+    function fit() {
+      const w = wrap.clientWidth, h = wrap.clientHeight; if (!w || !h) return;
+      cell = Math.max(8, Math.floor(Math.min((w - 2) / W, (h - 2) / H)));
+      ctx = sizeCanvas(cv, W * cell, H * cell); draw();
+    }
+
+    /* loop and screens */
+    function loop(t) {
+      raf = requestAnimationFrame(loop);
+      acc += Math.min(200, t - last); last = t;
+      while (acc >= STEP && raf) { acc -= STEP; step(); }
+      draw();
+    }
+    function resume() { if (state !== 'run' || raf || document.hidden) return; last = performance.now(); acc = 0; raf = requestAnimationFrame(loop); }
+    function pause() { cancelAnimationFrame(raf); raf = 0; }
+    function start() { ov.hidden = true; state = 'run'; resume(); }
+    function play(i) { load(i); start(); }
+    function finish() {
+      pause(); draw(); state = 'end';
+      const L = LEVELS.length;
+      if (!ending.won) {
+        overlay(ov, { title: 'So close', lines: [ending.reason, 'Level ' + (li + 1) + ': ' + LEVELS[li].name], primary: 'Try again', onPrimary: () => play(li) });
+        return;
+      }
+      const isBest = li + 1 > (data.best.pins || 0);
+      if (isBest) data.best.pins = li + 1;
+      data.pins = (li + 1) % L; save(); refreshHome();
+      if (li + 1 < L) overlay(ov, { title: 'Hero saved', lines: ['The hero collected ' + got + ' gold.'], primary: 'Next level', onPrimary: () => play(li + 1), secondary: 'Replay', onSecondary: () => play(li) });
+      else overlay(ov, { title: 'All rescued', lines: ['You cleared all ' + L + ' levels.', 'Not a single ad.'], best: isBest, primary: 'Play again', onPrimary: () => play(0) });
+    }
+    function ready() {
+      pause(); state = 'ready'; load(li);
+      overlay(ov, {
+        title: 'Pin Rescue', lines: ['Tap a pin to pull it. Get the gold to the hero and keep the lava and monsters away.', 'Level ' + (li + 1) + ' of ' + LEVELS.length + ': ' + LEVELS[li].name],
+        primary: 'Play', onPrimary: start, ...(li ? { secondary: 'Start from level 1', onSecondary: () => play(0) } : {}),
+      });
+    }
+
+    view.addEventListener('click', e => {
+      if (state !== 'run' || ending || e.target.closest('.overlay')) return;
+      const r = cv.getBoundingClientRect(), cx = (e.clientX - r.left) / cell - .5, cy = (e.clientY - r.top) / cell - .5;
+      let best = null, bd = 1.6;
+      pinList.forEach(p => {
+        if (p.out) return;
+        const d = Math.hypot(Math.max(p.x0 - cx, 0, cx - p.x1), Math.max(p.y0 - cy, 0, cy - p.y1));
+        if (d < bd) { bd = d; best = p; }
+      });
+      if (best) pull(best);
+    });
+    ownTouches(view);
+    if (/[?&]test\b/.test(location.search)) window.__pins = { LEVELS, load, step, draw, pull: i => pull(pinList[i]), get ending() { return ending; }, get got() { return got; }, get need() { return need; }, set state(v) { state = v; } };
+    ready();
+    return {
+      show() { if (state === 'ready') ready(); fit(); resume(); },
+      hide: pause, pause, resume, fit, key() {},
+      newGame() { play(li); },
+      act(a) { if (a === 'retry' || a === 'new') play(li); },
+      reset() { li = 0; ready(); },
+    };
+  })();
+
+  /* ======================================================================
      Shell: routing, home, settings, data
      ====================================================================== */
-  const games = { '/snake': snake, '/2048': g2048, '/mines': mines, '/blocks': blocks };
+  const games = { '/snake': snake, '/2048': g2048, '/mines': mines, '/blocks': blocks, '/pins': pins };
 
   function refreshHome() {
     const b = data.best, m = b.mines;
@@ -561,11 +813,13 @@
     $('#home-snake').textContent = b.snake ? 'Best ' + fmt(b.snake) : 'New';
     $('#home-2048').textContent = b.g2048 ? 'Best ' + fmt(b.g2048) : 'New';
     $('#home-blocks').textContent = b.blocks ? 'Best ' + fmt(b.blocks) : 'New';
+    $('#home-pins').textContent = b.pins ? b.pins + ' of 5 cleared' : 'New';
     const md = PH.store.get('minefield');
     $('#home-mines').textContent = m[md] != null ? 'Best ' + fmtTime(m[md]) : bestMine != null ? 'Played' : 'New';
     $('#sc-snake').textContent = b.snake ? fmt(b.snake) : '—';
     $('#sc-2048').textContent = b.g2048 ? fmt(b.g2048) : '—';
     $('#sc-blocks').textContent = b.blocks ? fmt(b.blocks) : '—';
+    $('#sc-pins').textContent = b.pins ? 'Level ' + b.pins : '—';
     ['easy', 'normal', 'hard'].forEach(k => { $('#sc-mines-' + k).textContent = fmtTime(m[k]); });
     $('#snake-best').textContent = fmt(b.snake); $('#g2048-best').textContent = fmt(b.g2048);
     $('#mines-best').textContent = fmtTime(m[PH.store.get('minefield')]);
@@ -581,9 +835,9 @@
     if (!g) refreshHome();
   });
   addEventListener('resize', () => { active && active.fit(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && active) active.pause && active.pause(); });
+  document.addEventListener('visibilitychange', () => { if (!active) return; if (document.hidden) active.pause && active.pause(); else active.resume && active.resume(); });
   document.addEventListener('click', e => {
-    if (e.target.closest('[data-open-sheet="menu"]') && active && active.pause && active !== mines) active.pause();
+    if (e.target.closest('[data-open-sheet="menu"]') && active && active.pause && active !== mines && active !== pins) active.pause();
     const a = e.target.closest('[data-action]');
     if (a && active) a.dataset.action === 'new' ? active.newGame() : active.act && active.act(a.dataset.action);
     const k = e.target.closest('.page-keys [data-act]');
@@ -605,16 +859,16 @@
   $('#reset-display').onclick = () => { PH.store.set('crt', true); PH.store.set('rain', false); PH.toast('Display reset.'); };
   $('#export').onclick = () => {
     const settings = {}; Object.keys({ ...DEFAULTS, crt: 1, rain: 1 }).forEach(k => { settings[k] = PH.store.get(k); });
-    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.7', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
+    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.8', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
   };
   $('#reset-scores').onclick = async () => {
     if (!(await PH.confirm('Reset all best scores and times? This can\'t be undone.', { title: 'Reset scores', ok: 'Reset', danger: true }))) return;
     data.best = blankBest(); save(); refreshHome(); PH.toast('Best scores reset.', 'warn');
   };
   $('#erase').onclick = async () => {
-    if (!(await PH.confirm('Erase all best scores, your saved 2048 game and settings? This can\'t be undone.', { title: 'Erase data', ok: 'Erase', danger: true }))) return;
+    if (!(await PH.confirm('Erase all best scores, your saved 2048 game, your Pin Rescue level and settings? This can\'t be undone.', { title: 'Erase data', ok: 'Erase', danger: true }))) return;
     data = blank(); try { localStorage.removeItem(DKEY); } catch {}
-    PH.store.reset(); g2048.reset(); snake.newGame(); blocks.newGame(); mines.newGame(); refreshHome();
+    PH.store.reset(); g2048.reset(); snake.newGame(); blocks.newGame(); mines.newGame(); pins.reset(); refreshHome();
     PH.toast('All data erased.', 'warn');
   };
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
