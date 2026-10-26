@@ -5,16 +5,26 @@
   const DEFAULTS = { snakeSpeed: 'normal', snakeWrap: false, minefield: 'easy', ghost: true };
   Object.assign(PH.store.defaults, DEFAULTS);   // so games can read settings before PH.init
 
+  const GAMES = {
+    snake: { route: '/snake', name: 'Snake', desc: "Eat, grow, don't bite yourself", opt: '/settings/snake-speed' },
+    '2048': { route: '/2048', name: '2048', desc: 'Slide and merge to 2048' },
+    mines: { route: '/mines', name: 'Mines', desc: 'Clear the field without a boom', opt: '/settings/minefield' },
+    blocks: { route: '/blocks', name: 'Blocks', desc: 'Stack pieces, clear lines' },
+    pins: { route: '/pins', name: 'Pin Rescue', desc: 'Pull pins, save the hero' },
+  };
+  const gameKey = route => Object.keys(GAMES).find(k => GAMES[k].route === route);
+  const icon = k => { const i = $('#ar-icons').content.querySelector('[data-k="' + k + '"]'); return i ? i.innerHTML : ''; };
+
   /* ---------- Tool data: best scores + saved 2048 game ---------- */
   const DKEY = 'phosphor-arcade:data';
   const blankBest = () => ({ snake: 0, g2048: 0, blocks: 0, pins: 0, mines: { easy: null, normal: null, hard: null } });
-  const blank = () => ({ best: blankBest(), g2048: null, pins: 0 });
+  const blank = () => ({ best: blankBest(), g2048: null, pins: 0, sel: 'snake', last: null });
   let data = (() => {
     try {
       const d = JSON.parse(localStorage.getItem(DKEY));
       if (d && d.best) {
         const b = blankBest();
-        return { g2048: d.g2048 || null, pins: d.pins || 0, best: { ...b, ...d.best, mines: { ...b.mines, ...(d.best.mines || {}) } } };
+        return { g2048: d.g2048 || null, pins: d.pins || 0, sel: d.sel || 'snake', last: d.last || null, best: { ...b, ...d.best, mines: { ...b.mines, ...(d.best.mines || {}) } } };
       }
     } catch {}
     return blank();
@@ -70,7 +80,10 @@
   let active = null;   // the game on screen, if any
   const syncKeys = () => {
     const b = $('.page-keys [data-act="pause"]');
-    if (b) { const p = !!(active && active.paused); b.textContent = p ? '▸' : 'II'; b.setAttribute('aria-label', p ? 'Resume' : 'Pause'); }
+    if (!b) return;
+    const p = !!(active && active.paused);
+    b.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="' + (p ? 'M7 4l12 8-12 8z' : 'M6 5h4v14H6zM14 5h4v14h-4z') + '"/></svg>';
+    b.setAttribute('aria-label', p ? 'Resume' : 'Pause');
   };
 
   /* ======================================================================
@@ -325,7 +338,7 @@
     }
     function lose(i) {
       ended = true; hit = i; stopTimer(); board.classList.add('done');
-      PH.toast('Boom. Tap ⟳ for a new field.', 'warn'); refreshHome();
+      PH.toast('Boom. Pick New game from the menu for a new field.', 'warn'); refreshHome();
     }
     function win() {
       ended = true; stopTimer(); board.classList.add('done');
@@ -807,28 +820,44 @@
      ====================================================================== */
   const games = { '/snake': snake, '/2048': g2048, '/mines': mines, '/blocks': blocks, '/pins': pins };
 
+  /* Home: pick a game on the channel row, the strip says how you're doing, the big button plays it */
+  function status(k) {
+    const b = data.best, m = b.mines, md = PH.store.get('minefield');
+    if (k === 'snake') return b.snake ? 'Best ' + fmt(b.snake) : 'Not played yet';
+    if (k === '2048') { const g = data.g2048; return g && g.score > 0 && !g.over ? 'Game in progress · ' + fmt(g.score) : b.g2048 ? 'Best ' + fmt(b.g2048) : 'Not played yet'; }
+    if (k === 'mines') return (md[0].toUpperCase() + md.slice(1)) + ' field · ' + (m[md] != null ? 'Best ' + fmtTime(m[md]) : 'No best time yet');
+    if (k === 'blocks') return b.blocks ? 'Best ' + fmt(b.blocks) : 'Not played yet';
+    return 'Level ' + ((data.pins || 0) + 1) + ' of 5' + (b.pins ? ' · ' + b.pins + ' cleared' : '');
+  }
   function refreshHome() {
-    const b = data.best, m = b.mines;
-    const bestMine = ['easy', 'normal', 'hard'].map(k => m[k]).find(v => v != null);
-    $('#home-snake').textContent = b.snake ? 'Best ' + fmt(b.snake) : 'New';
-    $('#home-2048').textContent = b.g2048 ? 'Best ' + fmt(b.g2048) : 'New';
-    $('#home-blocks').textContent = b.blocks ? 'Best ' + fmt(b.blocks) : 'New';
-    $('#home-pins').textContent = b.pins ? b.pins + ' of 5 cleared' : 'New';
-    const md = PH.store.get('minefield');
-    $('#home-mines').textContent = m[md] != null ? 'Best ' + fmtTime(m[md]) : bestMine != null ? 'Played' : 'New';
+    const b = data.best, m = b.mines, k = GAMES[data.sel] ? data.sel : 'snake', G = GAMES[k];
+    $$('.ch[data-game]').forEach(c => { const on = c.dataset.game === k; c.classList.toggle('cur', on); c.setAttribute('aria-pressed', String(on)); });
+    $('#ar-ic').innerHTML = icon(k); $('#ar-play-ic').innerHTML = icon(k);
+    $('#ar-t').textContent = G.name; $('#ar-s').textContent = status(k);
+    $('#ar-opt').hidden = !G.opt;
+    $('#ar-play-t').textContent = 'Play ' + G.name; $('#ar-play').setAttribute('aria-label', 'Play ' + G.name);
+    const last = GAMES[data.last];
+    $('#ar-sub').textContent = last ? 'Last played ' + last.name + ' · ' + status(data.last) : 'Pick a game, then press Play';
+    $('#ar-cont').hidden = !last || data.last === k;
+    if (last) $('#ar-cont').setAttribute('aria-label', 'Continue ' + last.name);
     $('#sc-snake').textContent = b.snake ? fmt(b.snake) : '—';
     $('#sc-2048').textContent = b.g2048 ? fmt(b.g2048) : '—';
     $('#sc-blocks').textContent = b.blocks ? fmt(b.blocks) : '—';
     $('#sc-pins').textContent = b.pins ? 'Level ' + b.pins : '—';
-    ['easy', 'normal', 'hard'].forEach(k => { $('#sc-mines-' + k).textContent = fmtTime(m[k]); });
+    ['easy', 'normal', 'hard'].forEach(d => { $('#sc-mines-' + d).textContent = fmtTime(m[d]); });
     $('#snake-best').textContent = fmt(b.snake); $('#g2048-best').textContent = fmt(b.g2048);
     $('#mines-best').textContent = fmtTime(m[PH.store.get('minefield')]);
   }
+  $$('.ch[data-game]').forEach(c => c.addEventListener('click', () => { data.sel = c.dataset.game; save(); refreshHome(); }));
+  $('#ar-play').addEventListener('click', () => PH.go(GAMES[data.sel] ? GAMES[data.sel].route : '/snake'));
+  $('#ar-cont').addEventListener('click', () => { if (GAMES[data.last]) PH.go(GAMES[data.last].route); });
+  $('#ar-opt').addEventListener('click', () => { const G = GAMES[data.sel]; if (G && G.opt) PH.go(G.opt); });
 
   PH.on('route', r => {
     const g = games[r] || null;
     if (active && active !== g) active.hide();
     active = g;
+    if (g) { data.sel = data.last = gameKey(r); save(); }
     $('#actions').hidden = $('#actions-title').hidden = !g;
     if (g) { g.show(); requestAnimationFrame(() => g.fit()); }
     syncKeys();
@@ -854,12 +883,12 @@
   PH.on('rain', () => dispatchEvent(new Event('resize')));
 
   PH.init(DEFAULTS);
-  refreshHome();
+  refreshHome(); syncKeys();
 
   $('#reset-display').onclick = () => { PH.store.set('crt', true); PH.store.set('rain', false); PH.toast('Display reset.'); };
   $('#export').onclick = () => {
     const settings = {}; Object.keys({ ...DEFAULTS, crt: 1, rain: 1 }).forEach(k => { settings[k] = PH.store.get(k); });
-    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.8', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
+    PH.exportFile('phosphor-arcade-backup.json', JSON.stringify({ app: 'phosphor-arcade', version: '1.9', exported: new Date().toISOString(), best: data.best, game2048: data.g2048, settings }, null, 2));
   };
   $('#reset-scores').onclick = async () => {
     if (!(await PH.confirm('Reset all best scores and times? This can\'t be undone.', { title: 'Reset scores', ok: 'Reset', danger: true }))) return;
